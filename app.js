@@ -130,9 +130,9 @@ const maxGalleryImages = 24;
 const expectedServerVersion = Number(builderConfig.version);
 const web3FormsEndpoint = "https://api.web3forms.com/submit";
 const websiteGenerationEndpoint =
-  "https://test.logeshgopal0712.workers.dev/api/generate";
+  "https://gudi-space-workers.hellogudispace.workers.dev/api/generate";
 const otpGenerationEndpoint =
-  "https://test.logeshgopal0712.workers.dev/api/generateOtp";
+  "https://gudi-space-workers.hellogudispace.workers.dev/api/generateOtp";
 const publishedWebsiteRepository =
   "https://raw.githubusercontent.com/logeshgopal0712/cloudflareTest";
 const publishedWebsiteBranchesEndpoint =
