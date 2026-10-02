@@ -66,43 +66,6 @@ const createdWebsiteLink = document.querySelector("#created-website-link");
 const trialReminderNote = document.querySelector("#trial-reminder-note");
 const createCardTrialNote = document.querySelector("#create-card-trial-note");
 
-// Pulls the real trial length from the worker (CONSTANTS.FREE_TRIAL_DAYS)
-// instead of hardcoding it here - change that one constant and both
-// this pre-create note and the post-create one below pick it up with no
-// code change on this side. Fire-and-forget: if it fails, the static
-// data.json text already rendered stays as the fallback.
-const planPricesEndpoint =
-  "https://stabilisation-gudi-space-workers.hellogudispace.workers.dev/api/planPrices";
-const paymentStatusEndpoint =
-  "https://stabilisation-gudi-space-workers.hellogudispace.workers.dev/api/paymentStatus";
-
-// The "free for N days, add a plan" note only knows whether this was a
-// create or a modify - it has no idea whether the person already paid
-// (e.g. they added a plan, then came back here later). Hide it whenever
-// they actually have an active subscription, regardless of that.
-function hideTrialNoteIfSubscribed(email) {
-  if (!email) return;
-  fetch(`${paymentStatusEndpoint}?email=${encodeURIComponent(email)}`)
-    .then((response) => response.json())
-    .then((data) => {
-      if (data?.status === "active") {
-        trialReminderNote.hidden = true;
-      }
-    })
-    .catch((error) => console.error("Could not check subscription status.", error));
-}
-
-fetch(planPricesEndpoint)
-  .then((response) => response.json())
-  .then((data) => {
-    if (typeof data?.freeTrialDays === "number") {
-      freeTrialDays = data.freeTrialDays;
-      if (createCardTrialNote) {
-        createCardTrialNote.textContent = `Your site is free for ${freeTrialDays} day${freeTrialDays === 1 ? "" : "s"}. Add a plan to keep it live permanently.`;
-      }
-    }
-  })
-  .catch((error) => console.error("Could not fetch free trial length.", error));
 const createdWebsiteHeading = document.querySelector(
   "#created-website-heading",
 );
@@ -225,7 +188,8 @@ function currentMaxGalleryImages() {
 }
 const expectedServerVersion = Number(builderConfig.version);
 const web3FormsEndpoint = "https://api.web3forms.com/submit";
-const prefix = "stabilisation-";
+//const prefix = "stabilisation-";
+const prefix = "";
 const websiteGenerationEndpoint =
   "https://"+prefix+"gudi-space-workers.hellogudispace.workers.dev/api/generate";
 const otpGenerationEndpoint =
@@ -234,6 +198,43 @@ const sanityCheckEndpoint =
   "https://"+prefix+"gudi-space-workers.hellogudispace.workers.dev/api/generateSanityCheck";
 const websiteStatusEndpoint =
   "https://"+prefix+"gudi-space-workers.hellogudispace.workers.dev/api/generateStatus";
+const planPricesEndpoint =
+  "https://"+prefix+"gudi-space-workers.hellogudispace.workers.dev/api/planPrices";
+const paymentStatusEndpoint =
+  "https://"+prefix+"gudi-space-workers.hellogudispace.workers.dev/api/paymentStatus";
+
+// Pulls the real trial length from the worker (CONSTANTS.FREE_TRIAL_DAYS)
+// instead of hardcoding it here - change that one constant and both
+// this pre-create note and the post-create one below pick it up with no
+// code change on this side. Fire-and-forget: if it fails, the static
+// data.json text already rendered stays as the fallback.
+fetch(planPricesEndpoint)
+  .then((response) => response.json())
+  .then((data) => {
+    if (typeof data?.freeTrialDays === "number") {
+      freeTrialDays = data.freeTrialDays;
+      if (createCardTrialNote) {
+        createCardTrialNote.textContent = `Your site is free for ${freeTrialDays} day${freeTrialDays === 1 ? "" : "s"}. Add a plan to keep it live permanently.`;
+      }
+    }
+  })
+  .catch((error) => console.error("Could not fetch free trial length.", error));
+
+// The "free for N days, add a plan" note only knows whether this was a
+// create or a modify - it has no idea whether the person already paid
+// (e.g. they added a plan, then came back here later). Hide it whenever
+// they actually have an active subscription, regardless of that.
+function hideTrialNoteIfSubscribed(email) {
+  if (!email) return;
+  fetch(`${paymentStatusEndpoint}?email=${encodeURIComponent(email)}`)
+    .then((response) => response.json())
+    .then((data) => {
+      if (data?.status === "active") {
+        trialReminderNote.hidden = true;
+      }
+    })
+    .catch((error) => console.error("Could not check subscription status.", error));
+}
 const supportedImageTypes = new Set([
   "image/png",
   "image/jpeg",
