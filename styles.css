@@ -59,9 +59,53 @@ main {
 }
 
 .home-screen[hidden],
-#builder-workspace[hidden],
 .home-panel[hidden] {
   display: none;
+}
+
+/* The create/modify wizard is a full modal: a dim, blurred backdrop with
+   a single centered panel that owns its own scrolling. This keeps the
+   long page behind it locked and out of the way, instead of the wizard
+   competing with the rest of the page for scroll position (which was the
+   root cause of the step-to-step "shake"). */
+#builder-workspace.wizard-modal {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inset: 0;
+  padding: 28px;
+  background: rgb(15 23 42 / 52%);
+  backdrop-filter: blur(4px);
+}
+
+#builder-workspace.wizard-modal[hidden] {
+  display: none;
+}
+
+.wizard-modal-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(900px, 100%);
+  /* A fixed height (not max-height) so every step gets the same panel
+     size - using as much of the viewport as comfortably fits - and each
+     step's own content scrolls inside that constant frame instead of the
+     whole panel growing or shrinking to fit whatever step is showing. */
+  height: calc(100vh - 56px);
+  padding: 8px 24px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--paper);
+  border-radius: 20px;
+  box-shadow: 0 24px 70px rgb(15 23 42 / 28%);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Locked while the wizard modal is open, so the page behind it can't
+   scroll along with (or instead of) the panel. */
+body.wizard-modal-open {
+  overflow: hidden;
 }
 
 .home-options {
@@ -81,7 +125,7 @@ main {
 .home-welcome h2 {
   margin: 0 0 6px;
   color: var(--navy);
-  font-size: clamp(27px, 4vw, 38px);
+  font-size: 22px;
 }
 
 .home-welcome p:last-child {
@@ -142,6 +186,40 @@ main {
   border-radius: 10px;
 }
 
+.created-website-result a[hidden] {
+  display: none;
+}
+
+.created-website-pending {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.created-website-pending[hidden] {
+  display: none;
+}
+
+.ring-progress {
+  transform: rotate(-90deg);
+}
+
+.ring-progress-track {
+  fill: none;
+  stroke: rgb(255 255 255 / 30%);
+  stroke-width: 4;
+}
+
+.ring-progress-fill {
+  fill: none;
+  stroke: var(--white);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
 .home-action-card.website-created {
   background: var(--completed-card-background);
   border-color: var(--completed-card-border);
@@ -177,7 +255,7 @@ main {
 .home-action-card h3 {
   margin-bottom: 6px;
   color: var(--navy);
-  font-size: 21px;
+  font-size: 22px;
 }
 
 .home-action-card p {
@@ -281,6 +359,21 @@ main {
 
 .home-panel-status.error {
   color: var(--danger);
+}
+
+.trial-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+#trial-reminder-note a {
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
 }
 
 .operation-loader {
@@ -404,6 +497,8 @@ main {
   opacity: 0.6;
 }
 
+
+
 @keyframes operation-spin {
   to {
     transform: rotate(360deg);
@@ -475,7 +570,7 @@ main {
   display: flex;
   gap: 20px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   min-height: 48px;
 }
 
@@ -559,6 +654,9 @@ main {
 }
 
 .builder-menu-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0;
   display: none;
   width: 42px;
   height: 40px;
@@ -567,6 +665,7 @@ main {
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 10px;
   cursor: pointer;
+  transform: translateY(-50%);
 }
 
 .builder-menu-toggle span {
@@ -811,6 +910,127 @@ p {
   border-radius: 10px;
 }
 
+.hero-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 8px;
+  text-align: center;
+  border-top: none;
+}
+
+.hero-logo-mark {
+  width: 68px;
+  height: 68px;
+  margin-bottom: 14px;
+  font-size: 30px;
+}
+
+.hero-brand-name {
+  margin-bottom: 6px;
+  font-size: clamp(28px, 4.2vw, 44px);
+  white-space: normal;
+}
+
+.hero-tagline {
+  margin: 0;
+  font-size: 15px;
+  opacity: 0.9;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.hero-actions .page-primary-action {
+  background: var(--white);
+  color: var(--navy);
+}
+
+.marketing-section {
+  padding: 34px 4px;
+}
+
+.section-divider {
+  width: 2px;
+  height: 44px;
+  margin: 6px auto;
+  background: linear-gradient(to bottom, transparent, var(--border) 15%, var(--border) 85%, transparent);
+}
+
+.what-is-gudispace {
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.what-is-gudispace h2 {
+  margin-bottom: 10px;
+}
+
+.what-is-gudispace p {
+  white-space: pre-line;
+}
+
+.why-us > h2 {
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.why-us-list {
+  display: grid;
+  gap: 16px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.why-us-row {
+  display: flex;
+  gap: 14px;
+  /* flex-start (not center) - each row now carries a heading plus a
+     description underneath, so the checkmark should sit level with the
+     first line of text rather than centered against the whole block. */
+  align-items: flex-start;
+  text-align: left;
+}
+
+.why-us-row strong {
+  flex: 0 0 auto;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  margin-top: 2px;
+  color: var(--white);
+  font-size: 14px;
+  text-align: center;
+  background: var(--accent);
+  border-radius: 50%;
+  place-items: center;
+}
+
+.why-us-text {
+  display: grid;
+  gap: 4px;
+}
+
+.why-us-row p {
+  margin: 0;
+}
+
+.why-us-heading {
+  font-weight: 700;
+}
+
+.why-us-description {
+  color: var(--muted);
+  font-size: 15px;
+}
+
 form {
   display: grid;
   gap: 22px;
@@ -819,28 +1039,78 @@ form {
 
 .wizard-progress {
   display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 20;
   gap: 6px;
   padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.95);
   border: 1px solid var(--border);
   border-radius: 10px;
+  /* Pinned to the top of the viewport on purpose: relying on
+     scrollIntoView() to land exactly at this bar's position was
+     inconsistent - a short step (e.g. Gallery) doesn't have enough
+     content below to scroll this far, so the page would stop short and
+     leave stuff above still showing, while a long step could scroll past
+     it entirely. Sticky guarantees it's always the first thing visible
+     regardless of how tall the current step's content is. */
 }
 
-.wizard-progress > div:first-child {
+.wizard-progress-top {
   display: flex;
   gap: 12px;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
 }
 
+.wizard-step-label {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 4px 2px;
+  text-align: left;
+}
+
 #wizard-step-count {
+  flex: 0 0 auto;
   color: var(--accent-dark);
   font-size: 13px;
   font-weight: 700;
 }
 
 #wizard-step-title {
+  overflow: hidden;
   font-family: "Anthropic Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Previous/Next, duplicated up here next to the step name so you don't
+   have to scroll down to the bottom nav to move between steps. */
+.wizard-top-nav-button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  color: var(--navy);
+  font-size: 17px;
+  font-weight: 700;
+  background: #eef2f8;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  place-items: center;
+}
+
+.wizard-top-nav-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.wizard-top-nav-button[hidden] {
+  display: none;
 }
 
 .wizard-progress-track {
@@ -863,8 +1133,58 @@ form {
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  padding: 4px 0 2px;
-  scrollbar-width: thin;
+  padding: 6px 0 2px;
+  /* The real scrollbar is hidden here in favor of the always-visible fake
+     one below (.wizard-step-links-track) - relying on the native bar
+     turned out to be inconsistent across browsers: some (notably Safari
+     on a trackpad) keep it as an overlay that only appears while
+     actively scrolling no matter what CSS asks for, regardless of
+     overflow/scrollbar-width/::-webkit-scrollbar settings. */
+  scrollbar-width: none;
+}
+
+.wizard-step-links::-webkit-scrollbar {
+  display: none;
+}
+
+.wizard-step-links[hidden] {
+  display: none;
+}
+
+/* Always-rendered, hand-drawn scroll indicator for the step strip above -
+   a thin track with a thumb sized/positioned to match real scroll
+   progress (kept in sync from JS). Never hidden by the OS's overlay-
+   scrollbar behavior the way a real scrollbar can be. */
+.wizard-step-links-track {
+  position: relative;
+  height: 5px;
+  margin-bottom: 4px;
+  overflow: hidden;
+  /* Light track, clearly-darker thumb - the previous version used
+     var(--border) for both, which are close enough to white that the
+     thumb was hard to make out against the track at a glance. */
+  background: #e5e2db;
+  border-radius: 999px;
+}
+
+.wizard-step-links-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  min-width: 24px;
+  background: var(--muted);
+  border-radius: inherit;
+  cursor: grab;
+}
+
+.wizard-step-links-track {
+  cursor: pointer;
+}
+
+/* Nothing to scroll (or not yet measured) - no point showing a track. */
+.wizard-step-links-track[hidden] {
+  display: none;
 }
 
 .wizard-step-links button {
@@ -993,12 +1313,31 @@ form {
   font-weight: 700;
 }
 
+/* Title + close (×) row, pinned at the very top of the wizard modal via
+   the sticky .wizard-progress it lives inside - always visible above the
+   step name/progress bar, never something you have to scroll past to
+   find the close button. */
+.wizard-modal-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+}
+
+.wizard-modal-header .builder-prompt {
+  margin: 0;
+}
+
 .form-card {
   padding: 30px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid var(--border);
   border-radius: 20px;
   box-shadow: 0 5px 20px rgba(23, 34, 56, 0.04);
+  /* Leaves room for the now-sticky .wizard-progress bar so
+     scrollIntoView() doesn't tuck this step's heading behind it. */
+  scroll-margin-top: 110px;
 }
 
 .form-card:focus-within {
@@ -2147,6 +2486,15 @@ small {
     margin-top: 10px;
   }
 
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-actions a {
+    text-align: center;
+  }
+
   .home-actions {
     grid-template-columns: 1fr;
   }
@@ -2331,6 +2679,19 @@ small {
 
   .preview-frame-shell iframe {
     height: 680px;
+  }
+
+  /* On phones the centered panel has no real room to "float" - let it
+     take over the whole viewport instead, edge to edge. */
+  #builder-workspace.wizard-modal {
+    padding: 0;
+  }
+
+  .wizard-modal-panel {
+    width: 100%;
+    height: 100vh;
+    padding: 10px 14px 0;
+    border-radius: 0;
   }
 }
 

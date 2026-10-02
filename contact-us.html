@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Explore businesses that can use GudiSpace." />
-    <title>Examples | GudiSpace</title>
+    <meta name="description" content="Get in touch with the GudiSpace team." />
+    <title>Contact us | GudiSpace</title>
     <link rel="stylesheet" href="styles.css?v=168" />
     <script src="navigation.js?v=168" defer></script>
   </head>
@@ -15,21 +15,39 @@
         <div class="builder-navigation" id="builder-navigation">
           <a href="index.html" data-config-text="navigation.home">Home</a>
           <a href="how-it-works.html" data-config-text="navigation.howItWorks">How it works</a>
-          <a class="active" href="examples.html" data-navigation-key="examples" data-config-text="navigation.examples" hidden>Examples</a>
+          <a href="examples.html" data-navigation-key="examples" data-config-text="navigation.examples" hidden>Examples</a>
           <a href="pricing.html" data-navigation-key="pricing" data-config-text="navigation.pricing" hidden>Pricing</a>
           <a href="faq.html" data-config-text="navigation.faq">FAQ</a>
           <a href="manage_plan.html" data-navigation-key="managePlan" data-config-text="navigation.managePlan">Manage Plan</a>
-          <a href="contact-us.html" data-config-text="navigation.contactUs">Contact us</a>
+          <a class="active" href="contact-us.html" data-config-text="navigation.contactUs">Contact us</a>
         </div>
       </nav>
       <div class="content-page-intro">
         <p class="eyebrow" data-config-text="brand.name">GudiSpace</p>
-        <h1 data-config-text="headings.examples">Examples</h1>
+        <h1 data-config-text="headings.contactUs">Contact us</h1>
       </div>
     </header>
     <main class="content-page">
-      <div class="landing-card-grid example-grid" data-examples-list></div>
-      <a class="page-primary-action" href="index.html#home-options">Create your website <span aria-hidden="true">→</span></a>
+      <section class="home-panel contact-us-panel" id="contact-us">
+        <form id="builder-contact-form">
+          <div class="field-grid">
+            <label>
+              Name
+              <input name="name" required placeholder="e.g. Alex Morgan" />
+            </label>
+            <label>
+              Email
+              <input name="email" type="email" required placeholder="e.g. alex@example.com" />
+            </label>
+            <label class="full-width">
+              Message
+              <textarea name="message" required rows="4" placeholder="e.g. Tell us how we can help"></textarea>
+            </label>
+          </div>
+          <button class="home-panel-action" type="submit">Send message <span aria-hidden="true">→</span></button>
+          <p id="contact-us-status" class="home-panel-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
     </main>
   </body>
 </html>

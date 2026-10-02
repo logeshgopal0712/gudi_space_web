@@ -1,5 +1,5 @@
 {
-  "version": 135,
+  "version": 168,
   "brand": {
     "name": "GudiSpace",
     "logoPath": "data/logo.svg"
@@ -10,15 +10,17 @@
     "examples": "Examples",
     "pricing": "Pricing",
     "faq": "FAQ",
-    "contactUs": "Contact us"
+    "contactUs": "Contact us",
+    "managePlan": "Manage Plan"
   },
   "headings": {
     "header": "Build your business website.",
-    "home": "What would you like to do?",
+    "home": "Get started",
     "howItWorks": "How it works",
     "examples": "Examples",
     "pricing": "Pricing",
     "faq": "FAQ",
+    "contactUs": "Contact us",
     "ready": "Your website is ready!",
     "company": "Company details",
     "offerings": "What you offer",
@@ -28,11 +30,14 @@
     "follow": "Follow",
     "appointment": "Appointment",
     "template": "Select a template",
-    "preview": "Preview"
+    "preview": "Preview",
+    "whatIsGudispace": "What is GudiSpace?",
+    "whyUs": "Why GudiSpace?",
+    "managePlan": "Manage your plan"
   },
   "taglines": {
     "headerDescription": "Fill in your details, preview instantly, and go live today.",
-    "homeDescription": "Create something new, update an existing website, or reach out to us.",
+    "homeDescription": "Create something new, update an existing website, or remove one you no longer need.",
     "createCardTitle": "Create website",
     "createCardDescription": "Start fresh and publish your business website in minutes.",
     "manageCardTitle": "Manage website",
@@ -42,10 +47,14 @@
     "createdLabel": "Website created",
     "modifiedLabel": "Website modified",
     "deploymentPending": "Deployment may take a few minutes. If the site doesn’t load right away, please wait and refresh.",
-    "viewWebsite": "View My Website →"
+    "viewWebsite": "View My Website →",
+    "heroPrimaryCta": "Get started",
+    "heroSecondaryCta": "See how it works",
+    "whatIsGudispaceDescription": "GudiSpace is a simple way to get your business online.\nAdd your company details, preview exactly how it will look and publish\n— all from one guided form.",
+    "createCardTrialNote": "Your site is free for 7 days. Add a plan to keep it live permanently."
   },
   "about": {
-    "company": "These details create the header and hero section.",
+    "company": "These details appear at the very top of your website — your business name, tagline, and logo.",
     "follow": "Add any social or podcast links that should appear on the website.",
     "template": "Choose the colors, background, and layout for your website.",
     "previewImages": "The preview uses original published images when available. A compressed thumbnail is used only if an original image cannot be loaded."
@@ -57,68 +66,52 @@
   },
   "howItWorks": [
     {
-      "heading": "Add your details",
-      "description": "Tell us about your business, offerings, contact details, and links."
+      "heading": "Company details",
+      "description": "Add your business name, tagline, description, and logo — this appears at the very top of your website."
     },
     {
-      "heading": "Choose your look",
-      "description": "Select a template, colors, and images that suit your brand."
+      "heading": "What you offer",
+      "description": "List your services or products, with pricing, descriptions, and links, so customers know exactly what you do."
     },
     {
-      "heading": "Preview and publish",
-      "description": "Check desktop and mobile previews, then publish when ready."
+      "heading": "Gallery",
+      "description": "Add photos of your work, space, or products — pick the ones that show your business at its best."
     },
     {
-      "heading": "Change your life",
-      "description": "Check desktop and mobile previews, then publish when ready."
+      "heading": "Contact details",
+      "description": "Add your phone, email, and address so customers know how to reach you."
+    },
+    {
+      "heading": "Inquiries & reviews",
+      "description": "Connect a free Web3Forms account to collect inquiries and reviews straight from your site."
+    },
+    {
+      "heading": "Follow",
+      "description": "Add your social links — Instagram, Facebook, LinkedIn, and more — so visitors can follow you."
+    },
+    {
+      "heading": "Appointment",
+      "description": "Take bookings? Add your Calendly link and keep it in sync — customers can book straight from your site."
+    },
+    {
+      "heading": "Choose your template",
+      "description": "Pick a template, colors, a background image, and its transparency and opacity, to match your brand."
+    },
+    {
+      "heading": "Preview",
+      "description": "See exactly how your site will look on desktop and mobile. Nothing goes live until you're happy with it."
+    },
+    {
+      "heading": "Go live",
+      "description": "Publish your site to your own address, like yourbusiness.gudispace.com — included, at no extra charge."
+    },
+    {
+      "heading": "Your free trial",
+      "description": "Your site is free for {{TRIAL_DAYS}} days. Add a plan any time from Manage Plan to keep it live permanently — cancel whenever you like."
     }
   ],
-  "examples": [
-    {
-      "category": "Social platform",
-      "heading": "Facebook",
-      "description": "Visit Facebook to see a large-scale public website experience.",
-      "url": "https://www.facebook.com/"
-    }
-  ],
-  "pricing": [
-    {
-      "heading": "Starter",
-      "price": "$9/month",
-      "description": "A simple option for individuals and new businesses.",
-      "features": [
-        "One responsive website",
-        "Website preview",
-        "Gallery and contact form"
-      ],
-      "buttonLabel": "Choose Starter",
-      "url": "https://example.com/"
-    },
-    {
-      "heading": "Professional",
-      "price": "$19/month",
-      "description": "For growing businesses that need more flexibility.",
-      "features": [
-        "Everything in Starter",
-        "More gallery images",
-        "Offerings and reviews"
-      ],
-      "buttonLabel": "Choose Professional",
-      "url": "https://example.com/"
-    },
-    {
-      "heading": "Business",
-      "price": "$39/month",
-      "description": "For established businesses with expanded website needs.",
-      "features": [
-        "Everything in Professional",
-        "Priority assistance",
-        "Advanced customization"
-      ],
-      "buttonLabel": "Choose Business",
-      "url": "https://example.com/"
-    }
-  ],
+  "examples": [],
+  "pricing": [],
   "faq": [
     {
       "question": "Can I preview my website before publishing?",
@@ -133,8 +126,74 @@
       "answer": "No installation is needed when GudiSpace is hosted online."
     },
     {
-      "question": "Do I need to install anything?",
-      "answer": "No installation is needed when GudiSpace is hosted online."
+      "question": "Do I need any design or coding experience?",
+      "answer": "No. Add your business details in a simple form, then choose a template — GudiSpace builds the site for you. No design or coding skills needed."
+    },
+    {
+      "question": "How do I log in to manage my website?",
+      "answer": "There's no account or password to remember. Use Manage website with the email you signed up with, and we'll send a one-time code to confirm it's you."
+    },
+    {
+      "question": "How long does it take for my website to go live?",
+      "answer": "Usually under a minute or two after you confirm the code. If it doesn't load right away, wait a moment and refresh."
+    },
+    {
+      "question": "What address will my website have?",
+      "answer": "Your own address, like yourbusiness.gudispace.com — included at no extra charge."
+    },
+    {
+      "question": "Can I collect inquiries or reviews from visitors?",
+      "answer": "Yes. Connect a free Web3Forms account, and messages and reviews submitted on your site are sent straight to you. You can then review them and decide whether to add them to your website — so a stranger can't spam it with bad reviews and hurt your business."
+    },
+    {
+      "question": "Can customers book appointments through my website?",
+      "answer": "Yes, if your business takes bookings. Add your Calendly link and it stays in sync automatically."
+    },
+    {
+      "question": "How many photos can I add to my gallery?",
+      "answer": "Up to 8 when you first create your site, and up to 24 once you're editing it through Manage website."
+    },
+    {
+      "question": "Can two websites use the same email or company name?",
+      "answer": "No. Each email can have one active website, and company names must be unique, so we'll let you know if either is already taken."
+    },
+    {
+      "question": "What happens if I delete my website?",
+      "answer": "It's removed permanently and can't be undone, so make sure before you confirm."
+    },
+    {
+      "question": "How much does GudiSpace cost?",
+      "answer": "Your site is free to try for {{TRIAL_DAYS}} days. After that, add a plan from Manage Plan to keep it live — see current monthly and yearly pricing there."
+    },
+    {
+      "question": "What happens when my free trial ends?",
+      "answer": "If you haven't added a plan, your site is removed after {{TRIAL_DAYS}} days. We'll email you a reminder before that happens, so there's time to add a plan and keep it live."
+    },
+    {
+      "question": "Can I cancel my plan?",
+      "answer": "Yes, any time from Manage Plan. Your site stays live until the end of the period you've already paid for."
+    }
+  ],
+  "whyUs": [
+    {
+      "heading": "Purpose-built for businesses",
+      "description": "Create a professional online presence without dealing with complicated website tools."
+    },
+    {
+      "heading": "Make your business online and get connected with clients",
+      "description": "Turn your business information into a website without starting from scratch."
+    },
+    {
+      "heading": "Connect with your customers",
+      "description": "Give customers an easy way to discover your business and get in touch."
+    },
+    {
+      "heading": "Update anytime",
+      "description": "Change your business information and keep your website up to date."
+    },
+    {
+      "heading": "Your website address included",
+      "description": "Get your own address, like yourbusiness.gudispace.com, at no extra charge."
     }
   ]
 }
