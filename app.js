@@ -43,6 +43,7 @@ document.querySelectorAll("[data-config-text]").forEach((element) => {
 
 const form = document.querySelector("#website-form");
 const homeScreen = document.querySelector("#home-screen");
+const homeOptions = document.querySelector("#home-options");
 const builderWorkspace = document.querySelector("#builder-workspace");
 const startCreateWebsiteButton = document.querySelector(
   "#start-create-website",
@@ -62,6 +63,56 @@ const publishedWebsiteLabel = document.querySelector(
   "#published-website-label",
 );
 const createdWebsiteLink = document.querySelector("#created-website-link");
+const trialReminderNote = document.querySelector("#trial-reminder-note");
+const createCardTrialNote = document.querySelector("#create-card-trial-note");
+
+// Pulls the real trial length from the worker (CONSTANTS.FREE_TRIAL_DAYS)
+// instead of hardcoding it here - change that one constant and both
+// this pre-create note and the post-create one below pick it up with no
+// code change on this side. Fire-and-forget: if it fails, the static
+// data.json text already rendered stays as the fallback.
+const planPricesEndpoint =
+  "https://stabilisation-gudi-space-workers.hellogudispace.workers.dev/api/planPrices";
+const paymentStatusEndpoint =
+  "https://stabilisation-gudi-space-workers.hellogudispace.workers.dev/api/paymentStatus";
+
+// The "free for N days, add a plan" note only knows whether this was a
+// create or a modify - it has no idea whether the person already paid
+// (e.g. they added a plan, then came back here later). Hide it whenever
+// they actually have an active subscription, regardless of that.
+function hideTrialNoteIfSubscribed(email) {
+  if (!email) return;
+  fetch(`${paymentStatusEndpoint}?email=${encodeURIComponent(email)}`)
+    .then((response) => response.json())
+    .then((data) => {
+      if (data?.status === "active") {
+        trialReminderNote.hidden = true;
+      }
+    })
+    .catch((error) => console.error("Could not check subscription status.", error));
+}
+
+fetch(planPricesEndpoint)
+  .then((response) => response.json())
+  .then((data) => {
+    if (typeof data?.freeTrialDays === "number") {
+      freeTrialDays = data.freeTrialDays;
+      if (createCardTrialNote) {
+        createCardTrialNote.textContent = `Your site is free for ${freeTrialDays} day${freeTrialDays === 1 ? "" : "s"}. Add a plan to keep it live permanently.`;
+      }
+    }
+  })
+  .catch((error) => console.error("Could not fetch free trial length.", error));
+const createdWebsiteHeading = document.querySelector(
+  "#created-website-heading",
+);
+const createdWebsiteDescription = document.querySelector(
+  "#created-website-description",
+);
+const createdWebsitePending = document.querySelector(
+  "#created-website-pending",
+);
+const ringProgressFill = document.querySelector("#ring-progress-fill");
 const managePanel = document.querySelector("#manage-panel");
 const manageEmail = document.querySelector("#manage-email");
 const loadWebsiteButton = document.querySelector("#load-website");
@@ -74,9 +125,52 @@ const deleteEmail = document.querySelector("#delete-email");
 const deleteWebsiteButton = document.querySelector("#delete-website");
 const deleteStatus = document.querySelector("#delete-status");
 const backToHomeButton = document.querySelector("#back-to-home");
-const headerHomeLogo = document.querySelector("#header-home-logo");
-const builderContactForm = document.querySelector("#builder-contact-form");
-const contactUsStatus = document.querySelector("#contact-us-status");
+const builderPromptTitle = document.querySelector("#builder-prompt-title");
+const previousPageTopButton = document.querySelector("#previous-page-top");
+const nextPageTopButton = document.querySelector("#next-page-top");
+const wizardStepLinksTrack = document.querySelector(
+  "#wizard-step-links-track",
+);
+const wizardStepLinksThumb = document.querySelector(
+  "#wizard-step-links-thumb",
+);
+const discardConfirmDialog = document.querySelector("#discard-confirm-dialog");
+const discardKeepEditingButton = document.querySelector(
+  "#discard-keep-editing",
+);
+const discardConfirmButton = document.querySelector("#discard-confirm");
+const deleteConfirmDialog = document.querySelector("#delete-confirm-dialog");
+const deleteDialogMessage = document.querySelector("#delete-dialog-message");
+const deleteDialogCancelButton = document.querySelector(
+  "#delete-dialog-cancel",
+);
+const deleteDialogConfirmButton = document.querySelector(
+  "#delete-dialog-confirm",
+);
+
+// Same styled-dialog pattern as the wizard's discard-changes prompt,
+// promise-based so the caller can just `await` a yes/no answer instead of
+// the browser's own window.confirm() (which looks like a security warning
+// and shows the raw local dev URL, not something to ship a delete
+// confirmation behind).
+function confirmDeleteWebsite(email) {
+  return new Promise((resolve) => {
+    deleteDialogMessage.textContent = `Delete the website for ${email}? This action cannot be undone. If you have an active plan, it will also be cancelled.`;
+    deleteConfirmDialog.hidden = false;
+
+    const cleanup = (result) => {
+      deleteConfirmDialog.hidden = true;
+      deleteDialogCancelButton.removeEventListener("click", onCancel);
+      deleteDialogConfirmButton.removeEventListener("click", onConfirm);
+      resolve(result);
+    };
+    const onCancel = () => cleanup(false);
+    const onConfirm = () => cleanup(true);
+
+    deleteDialogCancelButton.addEventListener("click", onCancel);
+    deleteDialogConfirmButton.addEventListener("click", onConfirm);
+  });
+}
 const statusMessage = document.querySelector("#status");
 const serverWarning = document.querySelector("#server-warning");
 const serverStatus = document.querySelector("#server-status");
@@ -96,6 +190,7 @@ const logoInput = form.elements.namedItem("logo");
 const logoPreview = document.querySelector("#logo-preview");
 const logoPreviewImage = document.querySelector("#logo-preview-image");
 const removeLogoButton = document.querySelector("#remove-logo");
+const logoValidationError = document.querySelector("#logo-validation-error");
 const galleryInput = form.elements.namedItem("gallery");
 const galleryPreviews = document.querySelector("#gallery-previews");
 const galleryValidationError = document.querySelector(
@@ -118,26 +213,27 @@ const otpStatus = document.querySelector("#otp-status");
 const otpCancelButton = document.querySelector("#otp-cancel");
 const otpResendButton = document.querySelector("#otp-resend");
 const otpContinueButton = otpForm.querySelector('button[type="submit"]');
-const contactUsButton = builderContactForm.querySelector(
-  'button[type="submit"]',
-);
 const maxImageSizeMb = 2;
 const maxImageSize = maxImageSizeMb * 1024 * 1024;
 const maxSourceImageSizeMb = 20;
 const maxSourceImageSize = maxSourceImageSizeMb * 1024 * 1024;
 const maxImageDimension = 2560;
-const maxGalleryImages = 24;
+const maxGalleryImagesCreate = 8;
+const maxGalleryImagesModify = 24;
+function currentMaxGalleryImages() {
+  return websiteOperation === "modify" ? maxGalleryImagesModify : maxGalleryImagesCreate;
+}
 const expectedServerVersion = Number(builderConfig.version);
 const web3FormsEndpoint = "https://api.web3forms.com/submit";
+const prefix = "stabilisation-";
 const websiteGenerationEndpoint =
-  "https://gudi-space-workers.hellogudispace.workers.dev/api/generate";
+  "https://"+prefix+"gudi-space-workers.hellogudispace.workers.dev/api/generate";
 const otpGenerationEndpoint =
-  "https://gudi-space-workers.hellogudispace.workers.dev/api/generateOtp";
-const publishedWebsiteRepository =
-  "https://raw.githubusercontent.com/logeshgopal0712/cloudflareTest";
-const publishedWebsiteBranchesEndpoint =
-  "https://api.github.com/repos/logeshgopal0712/cloudflareTest/branches?per_page=100";
-const builderContactEndpoint = "";
+  "https://"+prefix+"gudi-space-workers.hellogudispace.workers.dev/api/generateOtp";
+const sanityCheckEndpoint =
+  "https://"+prefix+"gudi-space-workers.hellogudispace.workers.dev/api/generateSanityCheck";
+const websiteStatusEndpoint =
+  "https://"+prefix+"gudi-space-workers.hellogudispace.workers.dev/api/generateStatus";
 const supportedImageTypes = new Set([
   "image/png",
   "image/jpeg",
@@ -164,6 +260,10 @@ let importedBackgroundImage = null;
 let serviceEditorSequence = 0;
 let websiteOperation = "create";
 let lockedWebsiteEmail = "";
+// Fallback only - overwritten as soon as /api/planPrices responds, so
+// this number never has to be kept in sync with the worker's
+// CONSTANTS.FREE_TRIAL_DAYS by hand.
+let freeTrialDays = 7;
 let activeOtpRequest = null;
 const yearStartedField = form.elements.namedItem("yearStarted");
 const brandColorField = form.elements.namedItem("brandColor");
@@ -237,6 +337,39 @@ function closeOtpDialog(cancelled = false) {
   otpResendButton.disabled = false;
   document.body.classList.remove("operation-in-progress");
   if (cancelled) request?.onCancel?.();
+}
+
+// Runs the create/delete sanity checks (misspelled/duplicate company name,
+// email that already has a site, email that has no site to delete, etc.)
+// with no OTP involved. Called right before an OTP would be sent, so an
+// operation that's always going to fail doesn't burn an OTP send + verify
+// round trip first. `body` is either { action: "create", data } or
+// { action: "delete", email }.
+async function runSanityCheck(body) {
+  const response = await fetch(sanityCheckEndpoint, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  let data;
+  try {
+    data = await response.json();
+  } catch (error) {
+    console.error("Sanity check API returned invalid JSON.", error);
+    throw new Error("The server returned an invalid response.");
+  }
+  if (!response.ok || data.success === false) {
+    console.error("Sanity check failed:", data);
+    throw new BackendRequestError(
+      backendErrorMessage(data, "That request can't be completed."),
+      response.status,
+      backendErrorCode(data),
+    );
+  }
+  return data;
 }
 
 async function sendOtp(email) {
@@ -353,6 +486,9 @@ const backgroundImagePreview = document.querySelector(
 const backgroundImagePreviewElement = document.querySelector(
   "#background-image-preview-image",
 );
+const backgroundImageValidationError = document.querySelector(
+  "#background-image-validation-error",
+);
 const clearBackgroundImageButton = document.querySelector(
   "#clear-background-image",
 );
@@ -416,20 +552,243 @@ function updateWizardStepLinks(visibleSteps) {
     });
     wizardStepLinks.append(button);
   });
+  // Keep the active tab pill visible within its own horizontally-scrolling
+  // strip. This must NOT touch vertical/page scroll - a plain
+  // scrollIntoView({block: "nearest"}) can still shift the whole page
+  // vertically (this runs on every showWizardStep call, including
+  // non-navigational refreshes where nothing should scroll at all), which
+  // was racing against the real page scroll below and landing the page in
+  // an inconsistent spot. Scrolling wizardStepLinks.scrollLeft directly
+  // instead can never affect vertical position.
+  const activeButton = wizardStepLinks.querySelector("button.active");
+  if (activeButton) {
+    const containerRect = wizardStepLinks.getBoundingClientRect();
+    const buttonRect = activeButton.getBoundingClientRect();
+    const offset =
+      buttonRect.left -
+      containerRect.left -
+      containerRect.width / 2 +
+      buttonRect.width / 2;
+    // "auto" (instant), not "smooth" - this strip sits inside the sticky
+    // header, right where the eye lands after the page-level jump above.
+    // A smooth animation here trails slightly behind that instant jump,
+    // which reads as a little secondary shake/settle right after the page
+    // snaps into place. Instant here means both resolve in the same frame.
+    wizardStepLinks.scrollBy({ left: offset, behavior: "auto" });
+  }
+  updateStepLinksScrollThumb();
 }
 
-function showHomeScreen() {
+// Keeps the hand-drawn scroll indicator under the step strip in sync with
+// its real scroll position - see the .wizard-step-links-track CSS comment
+// for why this isn't just a native scrollbar.
+function updateStepLinksScrollThumb() {
+  const { scrollWidth, clientWidth, scrollLeft } = wizardStepLinks;
+  const scrollable = scrollWidth > clientWidth + 1;
+  wizardStepLinksTrack.hidden = !scrollable;
+  if (!scrollable) return;
+  const thumbRatio = clientWidth / scrollWidth;
+  const maxScroll = scrollWidth - clientWidth;
+  const scrollRatio = maxScroll > 0 ? scrollLeft / maxScroll : 0;
+  wizardStepLinksThumb.style.width = `${thumbRatio * 100}%`;
+  wizardStepLinksThumb.style.left = `${scrollRatio * (1 - thumbRatio) * 100}%`;
+}
+
+wizardStepLinks.addEventListener("scroll", updateStepLinksScrollThumb);
+window.addEventListener("resize", updateStepLinksScrollThumb);
+
+// A plain mouse wheel only ever sends vertical delta, so without this a
+// wheel scroll over the step strip does nothing (only a trackpad's own
+// horizontal swipe would move it). Redirect vertical wheel input into
+// horizontal scroll here, same as most horizontally-scrolling UI does.
+wizardStepLinks.addEventListener(
+  "wheel",
+  (event) => {
+    const { scrollWidth, clientWidth } = wizardStepLinks;
+    if (scrollWidth <= clientWidth) return; // nothing to scroll
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return; // already horizontal input
+    event.preventDefault();
+    wizardStepLinks.scrollBy({ left: event.deltaY, behavior: "auto" });
+  },
+  { passive: false },
+);
+
+// Click-and-drag scrolling (holding the mouse button down and dragging
+// sideways) - separate from the wheel/trackpad scrolling above, which a
+// plain mouse with no wheel and no touch surface has no other way to
+// trigger. A small movement threshold keeps an ordinary click on a step
+// pill working as a click instead of being swallowed as a drag.
+(() => {
+  let isDragging = false;
+  let dragMoved = false;
+  let startX = 0;
+  let startScrollLeft = 0;
+
+  wizardStepLinks.addEventListener("mousedown", (event) => {
+    isDragging = true;
+    dragMoved = false;
+    startX = event.clientX;
+    startScrollLeft = wizardStepLinks.scrollLeft;
+  });
+
+  window.addEventListener("mousemove", (event) => {
+    if (!isDragging) return;
+    const delta = event.clientX - startX;
+    if (Math.abs(delta) > 4) dragMoved = true;
+    if (dragMoved) {
+      wizardStepLinks.scrollLeft = startScrollLeft - delta;
+    }
+  });
+
+  window.addEventListener("mouseup", () => {
+    isDragging = false;
+  });
+
+  // Suppress the click that would otherwise fire on a step-pill button
+  // right after a drag - without this, releasing the mouse after
+  // dragging also "clicks" whatever pill happens to be under the cursor.
+  wizardStepLinks.addEventListener(
+    "click",
+    (event) => {
+      if (dragMoved) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+    },
+    { capture: true },
+  );
+})();
+
+// Makes the hand-drawn indicator bar under the step strip an actual,
+// draggable scrollbar - not just a visual readout of scroll position.
+// Dragging the thumb (or clicking anywhere on the track) scrolls
+// wizardStepLinks proportionally; updateStepLinksScrollThumb (above)
+// keeps the thumb's size/position in sync the other way around.
+(() => {
+  let isDraggingThumb = false;
+
+  function scrollToTrackPosition(clientX) {
+    const trackRect = wizardStepLinksTrack.getBoundingClientRect();
+    const thumbWidth = wizardStepLinksThumb.getBoundingClientRect().width;
+    const usableTrackWidth = Math.max(trackRect.width - thumbWidth, 1);
+    const ratio = Math.min(
+      1,
+      Math.max(0, (clientX - trackRect.left - thumbWidth / 2) / usableTrackWidth),
+    );
+    const maxScroll = wizardStepLinks.scrollWidth - wizardStepLinks.clientWidth;
+    wizardStepLinks.scrollLeft = ratio * maxScroll;
+  }
+
+  wizardStepLinksThumb.addEventListener("mousedown", (event) => {
+    isDraggingThumb = true;
+    event.preventDefault(); // avoid text-selection while dragging
+  });
+
+  // Clicking the bare track (not the thumb itself) jumps straight to
+  // that position, same as a native scrollbar.
+  wizardStepLinksTrack.addEventListener("mousedown", (event) => {
+    if (event.target === wizardStepLinksThumb) return;
+    scrollToTrackPosition(event.clientX);
+  });
+
+  window.addEventListener("mousemove", (event) => {
+    if (!isDraggingThumb) return;
+    scrollToTrackPosition(event.clientX);
+  });
+
+  window.addEventListener("mouseup", () => {
+    isDraggingThumb = false;
+  });
+})();
+
+// Create/Manage/Delete are mutually exclusive "below the cards" panels -
+// opening one closes whichever of the others was open, while the 3 action
+// cards (#home-options) themselves always stay visible.
+function closeAllHomePanels() {
   builderWorkspace.hidden = true;
+  managePanel.hidden = true;
+  deletePanel.hidden = true;
+  // Always safe to call even if the wizard modal wasn't the thing open -
+  // removing a class that isn't there is a no-op.
+  document.body.classList.remove("wizard-modal-open");
+}
+
+function showHomeScreen(scrollTarget = homeOptions) {
+  closeAllHomePanels();
   homeScreen.hidden = false;
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  scrollTarget.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function showBuilderWorkspace() {
-  homeScreen.hidden = true;
+  closeAllHomePanels();
+  homeScreen.hidden = false;
   builderWorkspace.hidden = false;
+  document.body.classList.add("wizard-modal-open");
   showWizardStep(0);
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  formDirty = false;
 }
+
+// Whether anything in the form has actually been touched since the wizard
+// was last opened. Kept as a plain synchronous flag (not an async
+// snapshot-diff of collectConfiguration()) on purpose - that async
+// approach could race or silently never resolve if any one field read
+// hung, which would leave the discard prompt permanently disabled. A
+// flag set directly by the interaction itself can't race or hang.
+let formDirty = false;
+
+// input/change covers plain fields (text, textarea, select, checkbox,
+// radio, file, native color pickers). The click listener below is the
+// broader net: many controls here (template cards, color swatches,
+// section toggles) are custom buttons that set a value via JS rather
+// than firing input/change, so any click on an interactive element
+// inside a step's actual content (.form-card) counts too - except the
+// "i" info tooltips, which never touch data. A false positive here
+// (prompting when nothing meaningfully changed) is far cheaper than a
+// false negative that silently discards real edits.
+form.addEventListener("input", () => {
+  formDirty = true;
+});
+form.addEventListener("change", () => {
+  formDirty = true;
+});
+// Controls that live inside a .form-card but don't touch the site's data -
+// Preview, the Desktop/Mobile preview-size toggle, and the Create/Modify
+// submit button itself - so clicking them isn't itself a "change".
+const NON_DATA_CONTROLS_SELECTOR =
+  "#preview-website, .preview-devices, #create-website-api";
+
+form.addEventListener("click", (event) => {
+  if (event.target.closest(".field-info")) return;
+  if (event.target.closest(NON_DATA_CONTROLS_SELECTOR)) return;
+  const interactive = event.target.closest(
+    "button, input, select, textarea, [role='button']",
+  );
+  if (interactive && interactive.closest(".form-card")) {
+    formDirty = true;
+  }
+});
+
+function closeWizardModal() {
+  formDirty = false;
+  showHomeScreen();
+}
+
+function requestCloseWizardModal() {
+  if (formDirty) {
+    discardConfirmDialog.hidden = false;
+  } else {
+    closeWizardModal();
+  }
+}
+
+discardKeepEditingButton.addEventListener("click", () => {
+  discardConfirmDialog.hidden = true;
+});
+
+discardConfirmButton.addEventListener("click", () => {
+  discardConfirmDialog.hidden = true;
+  closeWizardModal();
+});
 
 function portableImageValue(image) {
   if (image && typeof image === "object") {
@@ -499,108 +858,6 @@ function normalizeStoredImage(image, prefix = "media") {
     image_path: image.image_path || "",
     preview_src: image.image_preview_src || image.preview_src || "",
   };
-}
-
-function collectStoredMedia(data) {
-  const backgroundImage = data.template || {};
-  if (backgroundImage.background_image_path) {
-    backgroundImage.image_path = backgroundImage.background_image_path;
-    backgroundImage.image_src = backgroundImage.background_image_src || "";
-  }
-  const media = [
-    data.company,
-    backgroundImage,
-    ...(Array.isArray(data.services) ? data.services : []),
-    ...(Array.isArray(data.gallery) ? data.gallery : []),
-  ];
-  return media.filter(
-    (image) =>
-      image &&
-      typeof image === "object" &&
-      image.image_path &&
-      !image.image_src &&
-      !image.image_preview_src,
-  );
-}
-
-function publishedMediaUrl(branch, imagePath) {
-  const safePath = String(imagePath)
-    .split("/")
-    .map((part) => encodeURIComponent(part))
-    .join("/");
-  return `${publishedWebsiteRepository}/${encodeURIComponent(branch)}/${safePath}`;
-}
-
-async function publishedBranchContainsMedia(branch, imagePath) {
-  try {
-    const response = await fetch(publishedMediaUrl(branch, imagePath), {
-      method: "HEAD",
-      cache: "no-store",
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function findPublishedWebsiteBranch(email, imagePath, companyName) {
-  const cacheKey = `gudispace-published-branch:${email.toLowerCase()}`;
-  const cachedBranch = window.localStorage.getItem(cacheKey);
-  if (
-    cachedBranch &&
-    (await publishedBranchContainsMedia(cachedBranch, imagePath))
-  ) {
-    return cachedBranch;
-  }
-
-  const likelyBranch = String(companyName || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "");
-  if (
-    likelyBranch &&
-    (await publishedBranchContainsMedia(likelyBranch, imagePath))
-  ) {
-    window.localStorage.setItem(cacheKey, likelyBranch);
-    return likelyBranch;
-  }
-
-  try {
-    const response = await fetch(publishedWebsiteBranchesEndpoint, {
-      headers: { Accept: "application/vnd.github+json" },
-    });
-    if (!response.ok) return "";
-    const branches = await response.json();
-    const branchNames = branches
-      .map((branch) => branch?.name)
-      .filter((branchName) => branchName && branchName !== likelyBranch);
-    const branchMatches = await Promise.all(
-      branchNames.map((branchName) =>
-        publishedBranchContainsMedia(branchName, imagePath),
-      ),
-    );
-    const matchingBranch = branchNames[branchMatches.indexOf(true)] || "";
-    if (matchingBranch) {
-      window.localStorage.setItem(cacheKey, matchingBranch);
-      return matchingBranch;
-    }
-  } catch (error) {
-    console.warn("Published image lookup failed.", error);
-  }
-  return "";
-}
-
-async function resolvePublishedMediaSources(data, email) {
-  const media = collectStoredMedia(data);
-  if (!media.length) return;
-  const branch = await findPublishedWebsiteBranch(
-    email,
-    media[0].image_path,
-    data.company?.companyName,
-  );
-  if (!branch) return;
-  media.forEach((image) => {
-    image.image_preview_src = publishedMediaUrl(branch, image.image_path);
-  });
 }
 
 function portableImageExtension(image) {
@@ -762,6 +1019,57 @@ async function readGenerationApiResponse(response) {
   return responseData;
 }
 
+const websiteStatusPollIntervalMs = 4000;
+const websiteStatusPollMaxAttempts = 20; // ~80s ceiling before we just show the link anyway
+
+async function checkWebsiteStatus(token) {
+  const response = await fetch(
+    `${websiteStatusEndpoint}?token=${encodeURIComponent(token)}`,
+  );
+  return readGenerationApiResponse(response);
+}
+
+// Polls "/api/generateStatus" with the token the create/modify call handed
+// back, calling onProgress(attempt) as it goes, until the Pages build for
+// this branch is actually live. This is what closes the old 522 gap -
+// instead of showing the link the instant the API responds, we wait
+// (bounded) until Cloudflare confirms the build finished.
+async function waitForWebsiteReady(token, onProgress) {
+  if (!token) {
+    // No token (e.g. server couldn't issue one) - nothing to poll, just proceed.
+    return;
+  }
+
+  for (let attempt = 1; attempt <= websiteStatusPollMaxAttempts; attempt++) {
+    let statusData;
+    try {
+      statusData = await checkWebsiteStatus(token);
+    } catch (error) {
+      console.error("Website status check failed.", error);
+      return; // don't block the user on a status-check hiccup - just show the link
+    }
+
+    if (statusData.ready) {
+      return;
+    }
+
+    if (statusData.status === "failure" || statusData.status === "canceled") {
+      throw new Error(
+        "Your website build failed. Please try again or contact support.",
+      );
+    }
+
+    onProgress?.(attempt);
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, websiteStatusPollIntervalMs),
+    );
+  }
+
+  // Timed out waiting client-side - proceed anyway. Worst case, the first
+  // click on the link needs a refresh, same as before this change.
+}
+
 function setWebsiteOperation(operation, email = "") {
   websiteOperation = operation;
   lockedWebsiteEmail = operation === "modify" ? email.trim() : "";
@@ -771,22 +1079,54 @@ function setWebsiteOperation(operation, email = "") {
     operation === "modify"
       ? "Modify website"
       : "Create website";
+  builderPromptTitle.textContent =
+    operation === "modify" ? "Modify website" : "Create website";
 }
 
-function showPublishedWebsite(previewUrl, payload) {
-  const wasModified = websiteOperation === "modify";
+const ringProgressRadius = 16;
+const ringProgressCircumference = 2 * Math.PI * ringProgressRadius;
+ringProgressFill?.setAttribute(
+  "stroke-dasharray",
+  String(ringProgressCircumference),
+);
+
+// fraction is 0..1. 0 = empty ring, 1 = fully filled.
+function setRingProgress(fraction) {
+  if (!ringProgressFill) return;
+  const clamped = Math.max(0, Math.min(1, fraction));
+  ringProgressFill.setAttribute(
+    "stroke-dashoffset",
+    String(ringProgressCircumference * (1 - clamped)),
+  );
+}
+
+// Reveals the "website created" card right away (as soon as the fast
+// create/modify API call succeeds), but in a pending state - a ring in
+// place of the link - since the site itself can still take up to ~80s to
+// actually go live. Lets the OTP dialog close immediately instead of
+// making the user stare at it for the whole build/poll phase.
+function showPublishedWebsitePending(previewUrl, payload, wasModified, token) {
   dataDeliveryStatus.replaceChildren();
   dataDeliveryStatus.className = "success";
-  createdWebsiteLink.href = previewUrl;
+
   publishedWebsiteLabel.textContent = wasModified
     ? builderTaglines.modifiedLabel
     : builderTaglines.createdLabel;
+  createdWebsiteHeading.textContent = wasModified
+    ? "Updating your website..."
+    : "Setting up your website...";
+  createdWebsiteDescription.textContent =
+    "This usually takes under a minute. Feel free to look around while you wait.";
+
+  createdWebsiteLink.href = previewUrl;
+  createdWebsiteLink.hidden = true;
+  setRingProgress(0);
+  createdWebsitePending.hidden = false;
   createdWebsiteResult.hidden = false;
 
-  startCreateWebsiteButton.disabled = true;
-  startCreateWebsiteButton.textContent = wasModified
-    ? builderTaglines.modifiedLabel
-    : builderTaglines.createdLabel;
+  // Not disabling startCreateWebsiteButton here - a person should be free
+  // to start building another website right away rather than being stuck
+  // until this one is deleted.
   createWebsiteCard.classList.add("website-created");
 
   manageWebsiteTitle.textContent = "Edit website";
@@ -796,10 +1136,213 @@ function showPublishedWebsite(previewUrl, payload) {
     'Edit website <span aria-hidden="true">→</span>';
   manageEmail.value = payload.data?.contact?.email || "";
 
-  showHomeScreen();
+  // Save right away, not just once the build is confirmed ready - the
+  // build/poll wait below can run up to ~80s, and a reload during that
+  // window would otherwise find nothing in storage and show a blank
+  // "Create website" screen, even though the site itself already exists
+  // server-side and this exact link will work once deployment finishes.
+  saveCreatedSiteState(
+    previewUrl,
+    payload.data?.contact?.email,
+    wasModified,
+    token,
+    false,
+  );
+
+  // Land on the "your website is ready" banner itself, not the action
+  // cards below it - that's the status the person just triggered and
+  // came back to the home screen to see.
+  showHomeScreen(createdWebsiteResult);
 }
 
-async function publishWebsite(config, otp) {
+// Swaps the card over to its finished state once polling confirms the
+// site is actually live (or gives up waiting - see waitForWebsiteReady).
+function showPublishedWebsiteReady(email, wasModified) {
+  createdWebsiteHeading.textContent = "Your website is ready!";
+  createdWebsiteDescription.textContent =
+    "Deployment may take a few minutes. If the site doesn’t load right away, please wait and refresh.";
+  createdWebsitePending.hidden = true;
+  createdWebsiteLink.hidden = false;
+
+  // Only relevant right after a brand new site goes live, not after an
+  // edit to an existing (presumably already-paid-or-still-in-trial) one.
+  if (!wasModified && email) {
+    trialReminderNote.replaceChildren();
+    trialReminderNote.append(
+      `Your site is free for ${freeTrialDays} day${freeTrialDays === 1 ? "" : "s"}. `,
+    );
+    const manageLink = document.createElement("a");
+    manageLink.href = `manage_plan.html?email=${encodeURIComponent(email)}`;
+    manageLink.textContent = "Add a plan";
+    trialReminderNote.append(manageLink, " to keep it live permanently.");
+    trialReminderNote.hidden = false;
+    hideTrialNoteIfSubscribed(email);
+  } else {
+    trialReminderNote.hidden = true;
+  }
+
+  saveCreatedSiteState(createdWebsiteLink.href, email, wasModified, null, true);
+}
+
+// The "your website is ready" panel otherwise lives only in this page's
+// in-memory JS state, so a full navigation away (e.g. clicking "Add a
+// plan" to Manage Plan) and back loses it entirely. Persist just enough
+// to redraw the same banner on the next load, until the site is deleted.
+const createdSiteStorageKey = "gudispace:lastCreatedSite";
+
+function saveCreatedSiteState(previewUrl, email, wasModified, token, ready) {
+  try {
+    localStorage.setItem(
+      createdSiteStorageKey,
+      JSON.stringify({ previewUrl, email, wasModified, token, ready }),
+    );
+  } catch (error) {
+    console.error("Could not save created-website state.", error);
+  }
+}
+
+function clearCreatedSiteState() {
+  try {
+    localStorage.removeItem(createdSiteStorageKey);
+  } catch (error) {
+    console.error("Could not clear created-website state.", error);
+  }
+}
+
+// Whichever email the persisted "ready" banner belongs to, if any -
+// independent of lockedWebsiteEmail, which is only set once someone has
+// clicked "Edit website" and is empty right after a plain create.
+function getCreatedSiteEmail() {
+  try {
+    const raw = localStorage.getItem(createdSiteStorageKey);
+    if (!raw) return "";
+    return JSON.parse(raw)?.email || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function restoreCreatedSiteState() {
+  let state;
+  try {
+    const raw = localStorage.getItem(createdSiteStorageKey);
+    if (!raw) return;
+    state = JSON.parse(raw);
+  } catch (error) {
+    console.error("Could not read saved created-website state.", error);
+    return;
+  }
+  if (!state?.previewUrl) return;
+
+  // Self-heals against any removal path that doesn't go through this
+  // page's own Delete button - e.g. the daily trial-prune job auto-
+  // removing an unpaid, expired site server-side, or the site being
+  // deleted from a different tab/device while this one still has it
+  // saved. Runs unconditionally, up front, so it covers BOTH branches
+  // below (still-pending resumed-poll and already-ready) rather than
+  // only the one it happens to be written next to - a resumed poll
+  // against a since-deleted site's token would otherwise just spin
+  // forever with no way to notice the site is actually gone.
+  if (state.email) {
+    const requestUrl = new URL(websiteGenerationEndpoint);
+    requestUrl.searchParams.set("email", state.email);
+    fetch(requestUrl, { method: "GET", headers: { Accept: "application/json" } })
+      .then((response) => readGenerationApiResponse(response))
+      .then((responseData) => {
+        if (!responseData?.data) {
+          throw new Error("Site no longer exists.");
+        }
+      })
+      .catch(() => {
+        clearCreatedSiteState();
+        createdWebsiteResult.hidden = true;
+        createWebsiteCard.classList.remove("website-created");
+      });
+  }
+
+  createdWebsiteLink.href = state.previewUrl;
+  createdWebsiteResult.hidden = false;
+  createWebsiteCard.classList.add("website-created");
+
+  manageWebsiteTitle.textContent = "Edit website";
+  manageWebsiteDescription.textContent =
+    "Update your website using the same form.";
+  showManageWebsiteButton.innerHTML =
+    'Edit website <span aria-hidden="true">→</span>';
+  if (state.email) manageEmail.value = state.email;
+
+  // Not yet confirmed ready when this was saved (the person reloaded
+  // during the ~80s build/poll window) - rather than falsely showing
+  // "Your website is ready!" with a dead link, resume the same polling
+  // that would have run had they never left, using the saved token.
+  if (state.ready === false && state.token) {
+    publishedWebsiteLabel.textContent = state.wasModified
+      ? builderTaglines.modifiedLabel
+      : builderTaglines.createdLabel;
+    createdWebsiteHeading.textContent = state.wasModified
+      ? "Updating your website..."
+      : "Setting up your website...";
+    createdWebsiteDescription.textContent =
+      "This usually takes under a minute. Feel free to look around while you wait.";
+    createdWebsiteLink.hidden = true;
+    setRingProgress(0);
+    createdWebsitePending.hidden = false;
+    trialReminderNote.hidden = true;
+
+    waitForWebsiteReady(state.token, (attempt) => {
+      setRingProgress(attempt / websiteStatusPollMaxAttempts);
+    })
+      .then(() => {
+        setRingProgress(1);
+        showPublishedWebsiteReady(state.email, state.wasModified);
+      })
+      .catch((error) => {
+        console.error("Website build polling failed.", error);
+        showPublishedWebsiteFailed(error.message);
+      });
+    return;
+  }
+
+  publishedWebsiteLabel.textContent = state.wasModified
+    ? builderTaglines.modifiedLabel
+    : builderTaglines.createdLabel;
+  createdWebsiteHeading.textContent = "Your website is ready!";
+  createdWebsiteDescription.textContent =
+    "Deployment may take a few minutes. If the site doesn’t load right away, please wait and refresh.";
+  createdWebsiteLink.hidden = false;
+  createdWebsitePending.hidden = true;
+
+  if (!state.wasModified && state.email) {
+    trialReminderNote.replaceChildren();
+    trialReminderNote.append(
+      `Your site is free for ${freeTrialDays} day${freeTrialDays === 1 ? "" : "s"}. `,
+    );
+    const manageLink = document.createElement("a");
+    manageLink.href = `manage_plan.html?email=${encodeURIComponent(state.email)}`;
+    manageLink.textContent = "Add a plan";
+    trialReminderNote.append(manageLink, " to keep it live permanently.");
+    trialReminderNote.hidden = false;
+    hideTrialNoteIfSubscribed(state.email);
+  } else {
+    trialReminderNote.hidden = true;
+  }
+
+}
+
+// The one case the background poll can genuinely fail (not just time
+// out): the build itself came back "failure"/"canceled". Surface that
+// on the same card instead of silently pretending it's ready.
+function showPublishedWebsiteFailed(message) {
+  createdWebsiteHeading.textContent = "Something went wrong";
+  createdWebsiteDescription.textContent = message;
+  createdWebsitePending.hidden = true;
+  createdWebsiteLink.hidden = false;
+}
+
+// Fires the create/modify request and validates the response. This stays
+// fast (it's just the API round-trip) so it's still fine to show under the
+// generic floating loader - the OTP-verification-failed case surfaces here.
+async function submitWebsite(config, otp) {
   const payload = createDataDeliveryPayload(config, otp);
   const action = websiteOperation === "modify" ? "modify" : "create";
   const response = await fetch(websiteGenerationEndpoint, {
@@ -810,26 +1353,80 @@ async function publishWebsite(config, otp) {
   const responseData = await readGenerationApiResponse(response);
 
   if (
-    typeof responseData.previewUrl === "string" &&
-    /^https?:\/\//i.test(responseData.previewUrl)
+    typeof responseData.previewUrl !== "string" ||
+    !/^https?:\/\//i.test(responseData.previewUrl)
   ) {
-    showPublishedWebsite(responseData.previewUrl, payload);
-    return;
+    console.error(`Generation API returned invalid ${action} data.`, responseData);
+    throw new Error("The server returned an invalid response.");
   }
 
-  console.error(`Generation API returned invalid ${action} data.`, responseData);
-  throw new Error("The server returned an invalid response.");
+  return { responseData, payload };
+}
+
+// Submits the create/modify request, then reveals the "created" card
+// immediately in its pending state and returns - it does NOT wait for the
+// build/poll phase, which runs in the background instead. That's what
+// lets the OTP dialog close right away instead of sitting open for the
+// whole ~80s wait.
+async function publishWebsite(config, otp) {
+  // Captured once, up front - websiteOperation is a shared, mutable
+  // variable, and the build/poll wait below can run for up to ~80s, long
+  // enough for the person to start a different create/modify session in
+  // the meantime and change it out from under this one.
+  const wasModifiedAtSubmit = websiteOperation === "modify";
+
+  const { responseData, payload } = await runWithLoader(
+    wasModifiedAtSubmit ? "Modifying website..." : "Creating website...",
+    () => submitWebsite(config, otp),
+  );
+
+  showPublishedWebsitePending(responseData.previewUrl, payload, wasModifiedAtSubmit, responseData.token);
+
+  waitForWebsiteReady(responseData.token, (attempt) => {
+    setRingProgress(attempt / websiteStatusPollMaxAttempts);
+  })
+    .then(() => {
+      setRingProgress(1);
+      showPublishedWebsiteReady(payload.data?.contact?.email, wasModifiedAtSubmit);
+    })
+    .catch((error) => {
+      console.error("Website build polling failed.", error);
+      showPublishedWebsiteFailed(error.message);
+    });
 }
 
 createWebsiteButton.addEventListener("click", async () => {
   if (!validateEntireForm()) return;
 
+  // Nothing was actually touched since this modify session opened (the
+  // same signal the close-confirm dialog uses) - skip the sanity
+  // check/OTP/API round trip entirely rather than spending an OTP send
+  // on a no-op save.
+  if (websiteOperation === "modify" && !formDirty) {
+    setDataDeliveryStatus("No changes to save.");
+    return;
+  }
+
   createWebsiteButton.disabled = true;
-  setDataDeliveryStatus("Sending OTP...");
+  setDataDeliveryStatus(
+    websiteOperation === "modify" ? "Sending OTP..." : "Checking details...",
+  );
   try {
     const config = await collectConfiguration();
     const email =
       websiteOperation === "modify" ? lockedWebsiteEmail : config.email;
+
+    if (websiteOperation !== "modify") {
+      // Catches a misspelled/duplicate company name or an email that
+      // already has an active site *before* an OTP is sent, instead of
+      // discovering it only after the customer has verified the OTP.
+      await runSanityCheck({
+        action: "create",
+        data: createPortableData(config),
+      });
+      setDataDeliveryStatus("Sending OTP...");
+    }
+
     await startOtpVerification({
       email,
       onCancel: () => {
@@ -846,12 +1443,7 @@ createWebsiteButton.addEventListener("click", async () => {
             ? "Modifying website..."
             : "Creating website...",
         );
-        await runWithLoader(
-          websiteOperation === "modify"
-            ? "Modifying website..."
-            : "Creating website...",
-          () => publishWebsite(config, otp),
-        );
+        await publishWebsite(config, otp);
         createWebsiteButton.disabled = false;
       },
     });
@@ -883,10 +1475,18 @@ function showWizardStep(index, shouldScroll = false) {
     `${((currentWizardStep + 1) / visibleSteps.length) * 100}%`;
   previousPageButton.disabled = currentWizardStep === 0;
   nextPageButton.hidden = currentWizardStep === visibleSteps.length - 1;
+  previousPageTopButton.disabled = currentWizardStep === 0;
+  nextPageTopButton.hidden = currentWizardStep === visibleSteps.length - 1;
   updateWizardStepLinks(visibleSteps);
 
   if (shouldScroll) {
-    activeStep.scrollIntoView({ behavior: "smooth", block: "start" });
+    // "smooth" here fights with the now-sticky .wizard-progress header -
+    // as the animated scroll crosses the point where the header switches
+    // between stuck/unstuck, the browser visibly re-corrects mid-flight,
+    // which shows up as a shake-then-settle. An instant jump avoids that
+    // entirely, and since the header is pinned there's no real benefit to
+    // animating the scroll anyway.
+    activeStep.scrollIntoView({ behavior: "auto", block: "start" });
   }
 }
 
@@ -984,15 +1584,22 @@ function validateEntireForm() {
   return true;
 }
 
-previousPageButton.addEventListener("click", () => {
+function goToPreviousWizardStep() {
   showWizardStep(currentWizardStep - 1, true);
-});
+}
 
-nextPageButton.addEventListener("click", () => {
+function goToNextWizardStep() {
   if (validateCurrentWizardStep()) {
     showWizardStep(currentWizardStep + 1, true);
   }
-});
+}
+
+previousPageButton.addEventListener("click", goToPreviousWizardStep);
+nextPageButton.addEventListener("click", goToNextWizardStep);
+// Same steps, duplicated at the top of the modal (next to the step name)
+// so you don't have to scroll down to the bottom nav just to move on.
+previousPageTopButton.addEventListener("click", goToPreviousWizardStep);
+nextPageTopButton.addEventListener("click", goToNextWizardStep);
 
 yearStartedField.max = String(new Date().getFullYear());
 yearStartedField.value = String(new Date().getFullYear());
@@ -1052,18 +1659,23 @@ function renderBackgroundImagePreview() {
 backgroundImageField.addEventListener("change", async () => {
   const [file] = backgroundImageField.files;
   if (!file) return;
+
+  backgroundImageValidationError.hidden = true;
+  backgroundImageValidationError.textContent = "";
+
   try {
     importedBackgroundImage = await runWithLoader(
       "Loading image...",
-      () => readImage(file),
+      () => readImage(file, 900),
     );
     backgroundImageField.value = "";
     renderBackgroundImagePreview();
   } catch (error) {
     backgroundImageField.value = "";
-    backgroundImageField.setCustomValidity(error.message);
-    backgroundImageField.reportValidity();
-    backgroundImageField.setCustomValidity("");
+    // Same reasoning as the logo input: it's visually hidden, so the
+    // native validation bubble never renders. Use a visible element.
+    backgroundImageValidationError.textContent = error.message;
+    backgroundImageValidationError.hidden = false;
   }
 });
 
@@ -1158,11 +1770,10 @@ async function checkServer() {
 wizardInitialized = true;
 showWizardStep(0);
 
-function createImageThumbnail(dataUrl) {
+function createImageThumbnail(dataUrl, maxSize = 480) {
   return new Promise((resolve) => {
     const image = new Image();
     image.addEventListener("load", () => {
-      const maxSize = 240;
       const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
       const width = Math.max(1, Math.round(image.width * scale));
       const height = Math.max(1, Math.round(image.height * scale));
@@ -1170,7 +1781,7 @@ function createImageThumbnail(dataUrl) {
       canvas.width = width;
       canvas.height = height;
       canvas.getContext("2d").drawImage(image, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/webp", 0.78));
+      resolve(canvas.toDataURL("image/webp", 0.85));
     });
     image.addEventListener("error", () => resolve(""));
     image.src = dataUrl;
@@ -1215,6 +1826,19 @@ function canvasToBlob(canvas, quality) {
   });
 }
 
+// Carries a stable `code` + the file's `name` alongside a natural-language
+// `message`, so a single-file caller (logo/background) can just show
+// `.message`, while a multi-file caller (gallery) can group failures by
+// `.code` and list the filenames together instead of repeating the same
+// sentence once per file.
+class ImageValidationError extends Error {
+  constructor(code, fileName, message) {
+    super(message);
+    this.code = code;
+    this.fileName = fileName;
+  }
+}
+
 async function compressImage(
   file,
   originalDataUrl,
@@ -1245,7 +1869,13 @@ async function compressImage(
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d");
-    if (!context) throw new Error(`Could not process ${file.name}.`);
+    if (!context) {
+      throw new ImageValidationError(
+        "processing-failed",
+        file.name,
+        `Could not process ${file.name}.`,
+      );
+    }
     context.drawImage(image, 0, 0, width, height);
     const blob = await canvasToBlob(canvas, quality);
 
@@ -1266,7 +1896,9 @@ async function compressImage(
     }
   }
 
-  throw new Error(
+  throw new ImageValidationError(
+    "compression-failed",
+    file.name,
     `${file.name} could not be compressed below ${maxImageSizeMb} MB.`,
   );
 }
@@ -1280,7 +1912,9 @@ function isHeicImage(file) {
 
 async function convertHeicImage(file) {
   if (typeof window.heic2any !== "function") {
-    throw new Error(
+    throw new ImageValidationError(
+      "heic-unavailable",
+      file.name,
       "HEIC conversion is unavailable. Refresh the builder and try again.",
     );
   }
@@ -1294,14 +1928,20 @@ async function convertHeicImage(file) {
     });
   } catch (error) {
     console.error("HEIC conversion failed.", error);
-    throw new Error(
+    throw new ImageValidationError(
+      "heic-conversion-failed",
+      file.name,
       `${file.name} could not be converted. Try exporting it as JPG and upload it again.`,
     );
   }
 
   const blob = Array.isArray(converted) ? converted[0] : converted;
   if (!(blob instanceof Blob)) {
-    throw new Error(`${file.name} did not produce a usable converted image.`);
+    throw new ImageValidationError(
+      "heic-invalid-output",
+      file.name,
+      `${file.name} did not produce a usable converted image.`,
+    );
   }
 
   const dataUrl = await readFileAsDataUrl(blob);
@@ -1318,7 +1958,7 @@ async function convertHeicImage(file) {
   );
 }
 
-async function readImage(file) {
+async function readImage(file, thumbnailMaxSize = 480) {
   const supportedExtension = supportedImagePattern.test(file.name);
   const heicImage = isHeicImage(file);
   if (
@@ -1326,13 +1966,17 @@ async function readImage(file) {
     !heicImage &&
     !supportedExtension
   ) {
-    throw new Error(
+    throw new ImageValidationError(
+      "unsupported-type",
+      file.name,
       `${file.name} is not supported. Choose a PNG, JPG, WebP, GIF, HEIC, or HEIF image.`,
     );
   }
 
   if (file.size > maxSourceImageSize) {
-    throw new Error(
+    throw new ImageValidationError(
+      "too-large",
+      file.name,
       `${file.name} is larger than the ${maxSourceImageSizeMb} MB input safety limit.`,
     );
   }
@@ -1347,7 +1991,7 @@ async function readImage(file) {
   return {
     id: createMediaId("media"),
     ...compressed,
-    thumbnail: await createImageThumbnail(compressed.dataUrl),
+    thumbnail: await createImageThumbnail(compressed.dataUrl, thumbnailMaxSize),
   };
 }
 
@@ -1375,6 +2019,9 @@ logoInput.addEventListener("change", async () => {
     return;
   }
 
+  logoValidationError.hidden = true;
+  logoValidationError.textContent = "";
+
   try {
     const logo = await runWithLoader("Loading image...", () => readImage(file));
     importedLogo = logo;
@@ -1382,9 +2029,12 @@ logoInput.addEventListener("change", async () => {
     renderLogoPreview();
   } catch (error) {
     clearLogo();
-    logoInput.setCustomValidity(error.message);
-    logoInput.reportValidity();
-    logoInput.setCustomValidity("");
+    // The logo file input is visually a 1x1px hidden element, so the
+    // browser's native validation bubble (setCustomValidity/reportValidity)
+    // has nowhere sensible to anchor and silently never appears. Show the
+    // error in a real, visible element instead.
+    logoValidationError.textContent = error.message;
+    logoValidationError.hidden = false;
   }
 });
 
@@ -1431,12 +2081,52 @@ function syncGalleryOrder() {
     .filter(Boolean);
 }
 
+// One line per failure REASON, not per file - so 3 oversized files show
+// as one grouped sentence ("a.jpg, b.jpg, c.jpg are larger than the 20 MB
+// size limit.") instead of the same sentence repeated three times.
+const galleryErrorTemplates = {
+  "unsupported-type": (files, plural) =>
+    `${files} ${plural ? "are" : "is"} not supported. Choose a PNG, JPG, WebP, GIF, HEIC, or HEIF image.`,
+  "too-large": (files, plural) =>
+    `${files} ${plural ? "are" : "is"} larger than the ${maxSourceImageSizeMb} MB size limit.`,
+  "compression-failed": (files, plural) =>
+    `${files} could not be compressed small enough to upload.`,
+  "processing-failed": (files, plural) => `${files} could not be processed.`,
+  "heic-unavailable": () =>
+    "HEIC conversion is unavailable. Refresh the builder and try again.",
+  "heic-conversion-failed": (files, plural) =>
+    `${files} could not be converted. Try exporting ${plural ? "them" : "it"} as JPG and upload again.`,
+  "heic-invalid-output": (files, plural) =>
+    `${files} did not produce a usable converted image.`,
+};
+
+function formatGalleryErrors(failedResults) {
+  const groups = new Map();
+  failedResults.forEach((result) => {
+    const error = result.reason;
+    const code = error?.code || "unknown";
+    const fileName = error?.fileName || "One image";
+    if (!groups.has(code)) groups.set(code, []);
+    groups.get(code).push(fileName);
+  });
+
+  return [...groups.entries()]
+    .map(([code, fileNames]) => {
+      const template = galleryErrorTemplates[code];
+      const plural = fileNames.length > 1;
+      if (template) return template(fileNames.join(", "), plural);
+      return `${fileNames.join(", ")} could not be added.`;
+    })
+    .join(" ");
+}
+
 galleryInput.addEventListener("change", async () => {
   const files = [...galleryInput.files];
   if (!files.length) return;
   galleryValidationError.hidden = true;
   galleryValidationError.textContent = "";
 
+  const maxGalleryImages = currentMaxGalleryImages();
   if (importedGallery.length + files.length > maxGalleryImages) {
     galleryInput.value = "";
     galleryValidationError.textContent =
@@ -1445,17 +2135,27 @@ galleryInput.addEventListener("change", async () => {
     return;
   }
 
-  try {
-    const images = await runWithLoader(
-      "Loading image...",
-      () => Promise.all(files.map(readImage)),
-    );
-    importedGallery.push(...images);
-    galleryInput.value = "";
-    renderGalleryPreviews();
-  } catch (error) {
-    galleryInput.value = "";
-    galleryValidationError.textContent = error.message;
+  const results = await runWithLoader(
+    "Loading image...",
+    () => Promise.allSettled(files.map((file) => readImage(file))),
+  );
+
+  const images = [];
+  const failed = [];
+  results.forEach((result) => {
+    if (result.status === "fulfilled") {
+      images.push(result.value);
+    } else {
+      failed.push(result);
+    }
+  });
+
+  importedGallery.push(...images);
+  galleryInput.value = "";
+  renderGalleryPreviews();
+
+  if (failed.length) {
+    galleryValidationError.textContent = formatGalleryErrors(failed);
     galleryValidationError.hidden = false;
   }
 });
@@ -1950,7 +2650,7 @@ function loadWebsiteData(payload, accountEmail = "") {
     ? data.gallery
         .map((image) => normalizeStoredImage(image, "gallery"))
         .filter(Boolean)
-        .slice(0, maxGalleryImages)
+        .slice(0, maxGalleryImagesModify)
     : [];
   const services = Array.isArray(data.services)
     ? data.services.map((service) => ({
@@ -1989,13 +2689,30 @@ startCreateWebsiteButton.addEventListener("click", () => {
 });
 
 showManageWebsiteButton.addEventListener("click", () => {
+  closeAllHomePanels();
+  // Otherwise a stale error from an earlier failed lookup (e.g. "No
+  // company exists for provided email") keeps showing here every time
+  // this panel is reopened, even after that was resolved elsewhere.
+  manageStatus.textContent = "";
+  manageStatus.className = "home-panel-status";
   managePanel.hidden = false;
+  // Pre-fill from the last site created/modified in this browser, if
+  // any, so the person doesn't have to retype an email they just used -
+  // only when the field is still empty, never overwriting something
+  // they're already in the middle of typing.
+  if (!manageEmail.value) {
+    manageEmail.value = getCreatedSiteEmail();
+  }
   manageEmail.focus();
   managePanel.scrollIntoView({ behavior: "smooth", block: "center" });
 });
 
 showDeleteWebsiteButton.addEventListener("click", () => {
+  closeAllHomePanels();
   deletePanel.hidden = false;
+  if (!deleteEmail.value) {
+    deleteEmail.value = getCreatedSiteEmail();
+  }
   deleteEmail.focus();
   deletePanel.scrollIntoView({ behavior: "smooth", block: "center" });
 });
@@ -2036,7 +2753,6 @@ loadWebsiteButton.addEventListener("click", async () => {
       console.error("Generation API returned invalid website data.", responseData);
       throw new Error("The server returned an invalid response.");
     }
-    await resolvePublishedMediaSources(responseData.data, email);
     loadWebsiteData(responseData.data, email);
   } catch (error) {
     manageStatus.textContent = error.message;
@@ -2057,19 +2773,22 @@ deleteWebsiteButton.addEventListener("click", async () => {
   }
 
   const email = deleteEmail.value.trim();
-  if (
-    !window.confirm(
-      `Delete the website for ${email}? This action cannot be undone.`,
-    )
-  ) {
+  if (!(await confirmDeleteWebsite(email))) {
     return;
   }
 
   const requestUrl = new URL(websiteGenerationEndpoint);
   requestUrl.searchParams.set("email", email);
   deleteWebsiteButton.disabled = true;
-  deleteWebsiteButton.textContent = "Sending OTP...";
+  deleteWebsiteButton.textContent = "Checking details...";
   try {
+    // Confirms a company actually exists for this email *before* sending
+    // an OTP - catches a misspelled/wrong email up front instead of
+    // wasting an OTP send + verify on a delete that was always going to
+    // fail with "No company exists for provided email."
+    await runSanityCheck({ action: "delete", email });
+    deleteWebsiteButton.textContent = "Sending OTP...";
+
     await startOtpVerification({
       email,
       onCancel: () => {
@@ -2084,17 +2803,23 @@ deleteWebsiteButton.addEventListener("click", async () => {
       },
       onVerify: async (otp) => {
         requestUrl.searchParams.set("otp", otp);
+        let deleteResponseData;
         await runWithLoader("Deleting website...", async () => {
           const response = await fetch(requestUrl, {
             method: "DELETE",
             headers: { Accept: "application/json" },
           });
-          await readGenerationApiResponse(response);
+          deleteResponseData = await readGenerationApiResponse(response);
         });
-        deleteStatus.textContent = "Website deleted successfully.";
+        deleteStatus.textContent = deleteResponseData?.subscriptionCanceled
+          ? "Website deleted successfully. Your subscription has also been cancelled."
+          : "Website deleted successfully.";
         deleteStatus.className = "home-panel-status success";
         deleteEmail.value = "";
-        if (lockedWebsiteEmail.toLowerCase() === email.toLowerCase()) {
+        if (
+          lockedWebsiteEmail.toLowerCase() === email.toLowerCase() ||
+          getCreatedSiteEmail().toLowerCase() === email.toLowerCase()
+        ) {
           resetBuilderForm();
           startCreateWebsiteButton.disabled = false;
           startCreateWebsiteButton.innerHTML =
@@ -2102,6 +2827,7 @@ deleteWebsiteButton.addEventListener("click", async () => {
           createWebsiteCard.classList.remove("website-created");
           createdWebsiteResult.hidden = true;
         }
+        clearCreatedSiteState();
         deleteWebsiteButton.disabled = false;
         deleteWebsiteButton.textContent = "Delete website";
       },
@@ -2115,39 +2841,7 @@ deleteWebsiteButton.addEventListener("click", async () => {
   }
 });
 
-backToHomeButton.addEventListener("click", showHomeScreen);
-headerHomeLogo.addEventListener("click", showHomeScreen);
-
-builderContactForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!builderContactForm.reportValidity()) return;
-  if (!builderContactEndpoint) {
-    contactUsStatus.textContent =
-      "Contact form delivery will be available after the form endpoint is connected.";
-    contactUsStatus.className = "home-panel-status";
-    return;
-  }
-
-  contactUsStatus.textContent = "Sending message...";
-  contactUsButton.disabled = true;
-  try {
-    await runWithLoader("Sending message...", async () => {
-      const response = await fetch(builderContactEndpoint, {
-        method: "POST",
-        body: new FormData(builderContactForm),
-      });
-      if (!response.ok) throw new Error(`Form returned ${response.status}.`);
-    });
-    builderContactForm.reset();
-    contactUsStatus.textContent = "Message sent successfully.";
-    contactUsStatus.className = "home-panel-status success";
-  } catch (error) {
-    contactUsStatus.textContent = `Could not send message: ${error.message}`;
-    contactUsStatus.className = "home-panel-status error";
-  } finally {
-    contactUsButton.disabled = false;
-  }
-});
+backToHomeButton.addEventListener("click", requestCloseWizardModal);
 
 async function collectConfiguration() {
   const fieldValue = (name) => form.elements.namedItem(name)?.value || "";
@@ -2227,6 +2921,11 @@ async function collectConfiguration() {
 async function renderPreview() {
   previewButton.disabled = true;
   setStatus("Building preview...");
+  // A stale error from a previous create/modify attempt (e.g. "Email
+  // already used") would otherwise keep showing under the preview even
+  // after the person fixes the field and previews again - clear it here
+  // since a fresh preview means they're starting a new attempt.
+  setDataDeliveryStatus("");
   try {
     const configuration = await collectConfiguration();
     const previewData = createPortableData(configuration, true);
@@ -2294,3 +2993,8 @@ document.querySelectorAll("[data-preview-size]").forEach((button) => {
 form.addEventListener("submit", (event) => event.preventDefault());
 
 checkServer();
+
+// Restore the "your website is ready" banner on a fresh page load, in
+// case the person just came back from Manage Plan (or anywhere else)
+// rather than just having created/modified a site in this same page load.
+restoreCreatedSiteState();

@@ -65,6 +65,54 @@ function setBrandLogo(brand = {}) {
   });
 }
 
+const builderContactForm = document.querySelector("#builder-contact-form");
+const contactUsStatus = document.querySelector("#contact-us-status");
+const builderContactEndpoint = "";
+
+if (builderContactForm) {
+  const contactUsButton = builderContactForm.querySelector(
+    'button[type="submit"]',
+  );
+
+  builderContactForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!builderContactForm.reportValidity()) return;
+    if (!builderContactEndpoint) {
+      if (contactUsStatus) {
+        contactUsStatus.textContent =
+          "Contact form delivery will be available after the form endpoint is connected.";
+        contactUsStatus.className = "home-panel-status";
+      }
+      return;
+    }
+
+    if (contactUsStatus) {
+      contactUsStatus.textContent = "Sending message...";
+      contactUsStatus.className = "home-panel-status";
+    }
+    contactUsButton.disabled = true;
+    try {
+      const response = await fetch(builderContactEndpoint, {
+        method: "POST",
+        body: new FormData(builderContactForm),
+      });
+      if (!response.ok) throw new Error(`Form returned ${response.status}.`);
+      builderContactForm.reset();
+      if (contactUsStatus) {
+        contactUsStatus.textContent = "Message sent successfully.";
+        contactUsStatus.className = "home-panel-status success";
+      }
+    } catch (error) {
+      if (contactUsStatus) {
+        contactUsStatus.textContent = `Could not send message: ${error.message}`;
+        contactUsStatus.className = "home-panel-status error";
+      }
+    } finally {
+      contactUsButton.disabled = false;
+    }
+  });
+}
+
 function renderHowItWorks(items) {
   const container = document.querySelector("[data-how-it-works-list]");
   if (!container) return;
@@ -81,6 +129,39 @@ function renderHowItWorks(items) {
     description.textContent = String(item.description || "");
     card.append(number, heading, description);
     container.append(card);
+  });
+}
+
+function renderWhyUs(items) {
+  const list = document.querySelector("[data-why-us-list]");
+  if (!list) return;
+  list.replaceChildren();
+
+  const valid = (Array.isArray(items) ? items : []).filter(
+    (item) => item && typeof item === "object" && String(item.heading || "").trim(),
+  );
+  if (!valid.length) return;
+
+  valid.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "why-us-row";
+    const mark = document.createElement("strong");
+    mark.textContent = "\u2713";
+    const textGroup = document.createElement("div");
+    textGroup.className = "why-us-text";
+    const heading = document.createElement("p");
+    heading.className = "why-us-heading";
+    heading.textContent = String(item.heading || "");
+    textGroup.append(heading);
+    const description = String(item.description || "").trim();
+    if (description) {
+      const descriptionEl = document.createElement("p");
+      descriptionEl.className = "why-us-description";
+      descriptionEl.textContent = description;
+      textGroup.append(descriptionEl);
+    }
+    row.append(mark, textGroup);
+    list.append(row);
   });
 }
 
@@ -221,6 +302,7 @@ function applySharedConfiguration(configuration) {
   setSharedColors(configuration.colors);
   setBrandLogo(configuration.brand);
   renderHowItWorks(configuration.howItWorks);
+  renderWhyUs(configuration.whyUs);
   renderExamples(configuration.examples);
   renderPricing(configuration.pricing);
   renderFaq(configuration.faq);
@@ -237,4 +319,40 @@ const sharedConfiguration = window.builderConfigReady
 
 sharedConfiguration
   .then(applySharedConfiguration)
+  .then(applyLiveTrialDays)
   .catch((error) => console.error("GudiSpace page content failed to load.", error));
+
+// How-it-works/FAQ content (above) references the free trial length as a
+// {{TRIAL_DAYS}} placeholder rather than a hardcoded number, so it stays
+// correct if that's ever changed - same reasoning as every other trial-
+// days display across the site. Swapped in from the live worker value
+// after the static content has rendered.
+const livePlanPricesEndpoint =
+  "https://stabilisation-gudi-space-workers.hellogudispace.workers.dev/api/planPrices";
+
+function applyLiveTrialDays() {
+  return fetch(livePlanPricesEndpoint)
+    .then((response) => response.json())
+    .then((data) => {
+      if (typeof data?.freeTrialDays !== "number") return;
+      const trialDays = String(data.freeTrialDays);
+      document
+        .querySelectorAll("[data-how-it-works-list], [data-faq-list]")
+        .forEach((container) => {
+          container.querySelectorAll("*").forEach((node) => {
+            if (
+              node.children.length === 0 &&
+              node.textContent.includes("{{TRIAL_DAYS}}")
+            ) {
+              node.textContent = node.textContent.replaceAll(
+                "{{TRIAL_DAYS}}",
+                trialDays,
+              );
+            }
+          });
+        });
+    })
+    .catch((error) =>
+      console.error("Could not fetch live trial length for page content.", error),
+    );
+}

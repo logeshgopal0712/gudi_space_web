@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Add, manage, or cancel your GudiSpace plan." />
+    <title>Manage plan | GudiSpace</title>
+    <link rel="stylesheet" href="styles.css?v=168" />
+    <script src="navigation.js?v=168" defer></script>
+    <script src="manage-plan.js?v=168" defer></script>
+  </head>
+  <body>
+    <header class="builder-header content-page-header">
+      <nav class="builder-topbar" aria-label="GudiSpace navigation">
+        <button class="builder-menu-toggle" id="builder-menu-toggle" type="button" aria-expanded="false" aria-controls="builder-navigation" aria-label="Open navigation"><span></span><span></span><span></span></button>
+        <div class="builder-navigation" id="builder-navigation">
+          <a href="index.html" data-config-text="navigation.home">Home</a>
+          <a href="how-it-works.html" data-config-text="navigation.howItWorks">How it works</a>
+          <a href="examples.html" data-navigation-key="examples" data-config-text="navigation.examples" hidden>Examples</a>
+          <a href="pricing.html" data-navigation-key="pricing" data-config-text="navigation.pricing" hidden>Pricing</a>
+          <a href="faq.html" data-config-text="navigation.faq">FAQ</a>
+          <a class="active" href="manage_plan.html" data-navigation-key="managePlan" data-config-text="navigation.managePlan">Manage Plan</a>
+          <a href="contact-us.html" data-config-text="navigation.contactUs">Contact us</a>
+        </div>
+      </nav>
+      <div class="content-page-intro">
+        <p class="eyebrow" data-config-text="brand.name">GudiSpace</p>
+        <h1 data-config-text="headings.managePlan">Manage your plan</h1>
+      </div>
+    </header>
+    <main class="content-page">
+      <section class="home-panel">
+        <div class="field-grid">
+          <label class="full-width">
+            Email
+            <input id="plan-email" type="email" required placeholder="e.g. alex@example.com" />
+          </label>
+          <label class="full-width">
+            Confirm email
+            <input id="plan-email-confirm" type="email" required placeholder="Re-enter your email" />
+          </label>
+        </div>
+        <button id="plan-lookup" class="home-panel-action" type="button">Continue <span aria-hidden="true">→</span></button>
+        <p id="plan-status" class="home-panel-status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="plan-options" class="home-panel" hidden>
+        <div class="home-panel-heading">
+          <h3>Add a plan</h3>
+        </div>
+        <div class="landing-card-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+          <article class="pricing-tile">
+            <h2>Monthly</h2>
+            <strong id="plan-monthly-price" class="pricing-value"></strong>
+            <button id="plan-monthly" class="home-panel-action" type="button">Pay monthly</button>
+          </article>
+          <article class="pricing-tile">
+            <h2>Yearly</h2>
+            <strong id="plan-yearly-price" class="pricing-value"></strong>
+            <button id="plan-yearly" class="home-panel-action" type="button">Pay yearly</button>
+          </article>
+        </div>
+      </section>
+
+      <section id="plan-otp-section" class="home-panel" hidden>
+        <div class="home-panel-heading">
+          <h3>Manage your plan</h3>
+          <p>Switch between monthly and yearly, update your card, or cancel.</p>
+        </div>
+        <button id="plan-send-otp" class="home-panel-action" type="button">Send verification code</button>
+        <div class="field-grid">
+          <label class="full-width">
+            Verification code
+            <input id="plan-otp" inputmode="numeric" placeholder="6-digit code" />
+          </label>
+        </div>
+        <button id="plan-open-portal" class="home-panel-action" type="button">Open billing portal <span aria-hidden="true">→</span></button>
+        <p id="plan-manage-status" class="home-panel-status" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+  </body>
+</html>
