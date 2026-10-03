@@ -907,6 +907,8 @@ function createPortableData(config, includePreviewSources = false) {
     },
     template: {
       templateId: config.template,
+      mode: config.mode,
+      mood: config.mood,
       primaryColor: config.brandColor,
       secondaryColor: config.secondaryColor,
       headerTextColor: config.headerTextColor,
@@ -1645,6 +1647,174 @@ transparentPageColorField.addEventListener("change", updatePageColorControls);
 pageColorOpacityField.addEventListener("input", updatePageColorControls);
 updateTemplateColors();
 updatePageColorControls();
+
+// Advanced mode: mood -> font/layout/services-layout/logo-size is decided
+// entirely by gudi_space_generated's own script.js (see MOOD_PRESETS
+// there) once template.mode === "advanced" and template.mood is set - this
+// builder only needs to submit those two fields. Colors are NOT part of
+// that engine-side preset, so the palettes below are this builder's own
+// curated, mood-appropriate color choices, applied the same way a manual
+// pick of brandColor/secondaryColor would be.
+// Each mood offers 2 dark-background palettes and 2 light-background ones -
+// "dark"/"light" here describes the secondary color (the site's base/header
+// tone), since that's what decides whether the overall site reads as a dark
+// or light theme. The engine (contrastHexColor in gudi_space_generated's
+// script.js) already picks readable text automatically off secondary's own
+// luminance, so a light secondary works exactly as well as a dark one -
+// nothing else needs to change for these to just work.
+const MOOD_PALETTES = {
+  professional: [
+    { name: "Ink & Champagne", tone: "dark", primary: "#b08d57", secondary: "#0f1b2d" },
+    { name: "Charcoal & Teal", tone: "dark", primary: "#2a9d8f", secondary: "#1c2b2f" },
+    { name: "Alabaster & Navy", tone: "light", primary: "#1f3a5f", secondary: "#f4f1ea" },
+    { name: "Porcelain & Slate", tone: "light", primary: "#475569", secondary: "#f8f7f5" },
+    // English/British heritage register - still "professional," just a more
+    // traditional, old-money take on it than the other 4.
+    { name: "British Racing & Burgundy", tone: "dark", primary: "#6b1f26", secondary: "#0d2818" },
+    { name: "Tweed & Cream", tone: "light", primary: "#5c3d2e", secondary: "#f3ead9" },
+  ],
+  warm: [
+    { name: "Clay & Espresso", tone: "dark", primary: "#d97748", secondary: "#2b211b" },
+    { name: "Honey & Umber", tone: "dark", primary: "#c99a46", secondary: "#33281c" },
+    { name: "Peach & Cream", tone: "light", primary: "#e2825a", secondary: "#fbf2e9" },
+    { name: "Sage & Linen", tone: "light", primary: "#8a9a6b", secondary: "#f7f3ea" },
+    { name: "Spiced Pumpkin & Walnut", tone: "dark", primary: "#d2691e", secondary: "#2e1f14" },
+    { name: "Apricot & Buttercream", tone: "light", primary: "#e8975c", secondary: "#fbf0df" },
+  ],
+  bold: [
+    { name: "Volt & Carbon", tone: "dark", primary: "#d7ff00", secondary: "#0b0b0b" },
+    { name: "Cobalt & Black", tone: "dark", primary: "#2d6cdf", secondary: "#0b0b0f" },
+    { name: "Coral Pop & Ivory", tone: "light", primary: "#ff5a5f", secondary: "#fff7f0" },
+    { name: "Electric Blue & Paper", tone: "light", primary: "#0066ff", secondary: "#f5f7fa" },
+    { name: "Hot Pink & Jet", tone: "dark", primary: "#ff2d78", secondary: "#0a0a0a" },
+    { name: "Tangerine & Snow", tone: "light", primary: "#ff6b1a", secondary: "#fff9f5" },
+  ],
+  minimal: [
+    { name: "Graphite & Ink", tone: "dark", primary: "#8a8a8e", secondary: "#121212" },
+    { name: "Pewter & Jet", tone: "dark", primary: "#6b6b6b", secondary: "#1a1a1a" },
+    { name: "Bone & Graphite", tone: "light", primary: "#4a4a4a", secondary: "#f7f6f4" },
+    { name: "Stone & Ink", tone: "light", primary: "#2b2b2b", secondary: "#efeee9" },
+    { name: "Onyx & Taupe", tone: "dark", primary: "#a89f91", secondary: "#161412" },
+    { name: "Linen & Charcoal", tone: "light", primary: "#2f2f2f", secondary: "#f2efe9" },
+  ],
+};
+
+// Mirrors MOOD_PRESETS[mood].templateId in gudi_space_generated/script.js.
+// Not strictly required (the generated site re-derives this from mood on
+// its own), but keeping the hidden template radio in sync avoids the
+// submitted data.json looking internally inconsistent.
+const MOOD_TEMPLATE_ID = {
+  professional: "logo-left",
+  warm: "centered",
+  bold: "logo-left",
+  minimal: "centered",
+};
+
+const designModeField = form.elements.namedItem("designMode");
+const moodField = form.elements.namedItem("mood");
+const templateField = form.elements.namedItem("template");
+const advancedModePanel = document.querySelector("#advanced-mode-panel");
+const manualModePanel = document.querySelector("#manual-mode-panel");
+const manualTemplatePicker = document.querySelector("#manual-template-picker");
+const palettePicker = document.querySelector("#palette-picker");
+
+function currentMood() {
+  return moodField?.value || "professional";
+}
+
+function swatchStyle(hex) {
+  return `background:${hex}`;
+}
+
+function renderPalettePicker(mood, preserveName) {
+  if (!palettePicker) return;
+  const palettes = MOOD_PALETTES[mood] || MOOD_PALETTES.professional;
+  const previousChecked = preserveName
+    ? palettes.find((palette) => palette.name === preserveName)
+    : null;
+  palettePicker.replaceChildren();
+  palettes.forEach((palette, index) => {
+    const label = document.createElement("label");
+    label.className = "palette-option";
+
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "paletteChoice";
+    input.value = palette.name;
+    input.checked = previousChecked
+      ? palette.name === previousChecked.name
+      : index === 0;
+    input.addEventListener("change", () => applyPalette(palette));
+
+    const swatches = document.createElement("span");
+    swatches.className = "palette-swatches";
+    [
+      palette.primary,
+      palette.secondary,
+      `color-mix(in srgb, ${palette.primary} 55%, white)`,
+      `color-mix(in srgb, ${palette.secondary} 70%, black)`,
+    ].forEach((color) => {
+      const swatch = document.createElement("span");
+      swatch.className = "palette-swatch";
+      swatch.style.cssText = swatchStyle(color);
+      swatches.append(swatch);
+    });
+
+    const name = document.createElement("span");
+    name.className = "palette-name";
+    name.textContent = palette.name;
+
+    const tone = document.createElement("span");
+    tone.className = `palette-tone palette-tone-${palette.tone}`;
+    tone.textContent = palette.tone === "light" ? "Light" : "Dark";
+
+    label.append(input, swatches, name, tone);
+    palettePicker.append(label);
+
+    if (input.checked) {
+      applyPalette(palette);
+    }
+  });
+}
+
+function applyPalette(palette) {
+  brandColorField.value = palette.primary;
+  secondaryColorField.value = palette.secondary;
+  updateTemplateColors();
+}
+
+function updateDesignModeVisibility() {
+  const advanced = (designModeField?.value || "advanced") === "advanced";
+  if (advancedModePanel) advancedModePanel.hidden = !advanced;
+  if (manualModePanel) manualModePanel.hidden = advanced;
+  // The template/layout picker stays visible in both modes - mood still
+  // pre-fills a sensible default layout when you pick a mood, but you can
+  // override it either way, and the generated site now honors whatever is
+  // actually picked here over mood's own default.
+  if (manualTemplatePicker) manualTemplatePicker.hidden = false;
+  if (advanced) {
+    renderPalettePicker(currentMood());
+  }
+}
+
+if (moodField) {
+  document.querySelectorAll('input[name="mood"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      if (templateField) {
+        templateField.value = MOOD_TEMPLATE_ID[currentMood()] || "logo-left";
+      }
+      renderPalettePicker(currentMood());
+    });
+  });
+}
+
+if (designModeField) {
+  document.querySelectorAll('input[name="designMode"]').forEach((input) => {
+    input.addEventListener("change", updateDesignModeVisibility);
+  });
+}
+
+updateDesignModeVisibility();
 
 function renderBackgroundImagePreview() {
   const imageSource = imagePreviewValue(importedBackgroundImage);
@@ -2576,6 +2746,8 @@ function resetBuilderForm() {
   previewFrameShell.hidden = true;
   previewPlaceholder.hidden = false;
   updatePageColorControls();
+  renderPalettePicker("professional");
+  updateDesignModeVisibility();
 }
 
 function loadWebsiteData(payload, accountEmail = "") {
@@ -2597,6 +2769,8 @@ function loadWebsiteData(payload, accountEmail = "") {
   setFormValue("description", company.description);
   setFormValue("about", company.about);
   setFormValue("template", template.templateId || "logo-left");
+  setFormValue("designMode", template.mode || "advanced");
+  setFormValue("mood", template.mood || "professional");
   setFormValue(
     "brandColor",
     template.primaryColor || "#c79245",
@@ -2605,6 +2779,22 @@ function loadWebsiteData(payload, accountEmail = "") {
     "secondaryColor",
     template.secondaryColor || "#172238",
   );
+  // Re-render the palette list for whichever mood this site was saved
+  // with, and try to re-select the exact palette (by matching its stored
+  // colors) rather than defaulting back to the first option.
+  if (typeof renderPalettePicker === "function") {
+    const savedPalette = (
+      MOOD_PALETTES[template.mood] || MOOD_PALETTES.professional
+    ).find(
+      (palette) =>
+        palette.primary === template.primaryColor &&
+        palette.secondary === template.secondaryColor,
+    );
+    renderPalettePicker(template.mood || "professional", savedPalette?.name);
+  }
+  if (typeof updateDesignModeVisibility === "function") {
+    updateDesignModeVisibility();
+  }
   setFormValue("usePageColor", template.usePageColor);
   setFormValue("pageColor", template.pageColor || "#fbfaf7");
   setFormValue("transparentPageColor", template.transparentPageColor);
@@ -2870,6 +3060,8 @@ async function collectConfiguration() {
   return {
     companyName: fieldValue("companyName"),
     template: fieldValue("template"),
+    mode: fieldValue("designMode") || "advanced",
+    mood: fieldValue("designMode") === "manual" ? "" : fieldValue("mood"),
     yearStarted: fieldValue("yearStarted"),
     tagline: fieldValue("tagline"),
     description: fieldValue("description"),
