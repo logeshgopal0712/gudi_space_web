@@ -488,7 +488,102 @@
           </div>
         </div>
 
-        <section class="design-controls">
+        <div class="design-mode-toggle" role="radiogroup" aria-label="Design mode">
+          <label class="design-mode-option">
+            <input
+              type="radio"
+              name="designMode"
+              value="advanced"
+              form="website-form"
+              checked
+            />
+            <span>
+              <strong>Advanced</strong>
+              <small>Pick a mood, we handle the rest</small>
+            </span>
+          </label>
+          <label class="design-mode-option">
+            <input
+              type="radio"
+              name="designMode"
+              value="manual"
+              form="website-form"
+            />
+            <span>
+              <strong>Manual</strong>
+              <small>Full control over every setting</small>
+            </span>
+          </label>
+        </div>
+
+        <section class="design-controls advanced-mode-panel" id="advanced-mode-panel">
+          <div class="design-controls-heading">
+            <div>
+              <p class="eyebrow">Mood</p>
+              <h3>What feeling fits your business?</h3>
+            </div>
+            <p>This sets your font, layout, and logo size to match.</p>
+          </div>
+          <div class="mood-picker" role="radiogroup" aria-label="Mood">
+            <label class="mood-option">
+              <input
+                type="radio"
+                name="mood"
+                value="professional"
+                form="website-form"
+                checked
+              />
+              <span class="mood-name">Professional</span>
+              <small>Confident &amp; established</small>
+            </label>
+            <label class="mood-option">
+              <input
+                type="radio"
+                name="mood"
+                value="warm"
+                form="website-form"
+              />
+              <span class="mood-name">Warm &amp; friendly</span>
+              <small>Approachable &amp; personal</small>
+            </label>
+            <label class="mood-option">
+              <input
+                type="radio"
+                name="mood"
+                value="bold"
+                form="website-form"
+              />
+              <span class="mood-name">Bold &amp; energetic</span>
+              <small>High-impact &amp; confident</small>
+            </label>
+            <label class="mood-option">
+              <input
+                type="radio"
+                name="mood"
+                value="minimal"
+                form="website-form"
+              />
+              <span class="mood-name">Minimal &amp; elegant</span>
+              <small>Quiet &amp; refined</small>
+            </label>
+          </div>
+
+          <div class="design-controls-heading">
+            <div>
+              <p class="eyebrow">Palette</p>
+              <h3>Choose a color palette</h3>
+            </div>
+            <p>Palettes shown here are matched to the mood you picked above.</p>
+          </div>
+          <div
+            class="palette-picker"
+            id="palette-picker"
+            role="radiogroup"
+            aria-label="Color palette"
+          ></div>
+        </section>
+
+        <section class="design-controls manual-mode-panel" id="manual-mode-panel" hidden>
           <div class="design-controls-heading">
             <div>
               <p class="eyebrow">Colors</p>
@@ -572,46 +667,60 @@
               </small>
             </div>
           </div>
-          <div class="background-image-control">
-            <span class="label-with-info">
-              Top banner background image
-              <button class="field-info" type="button" aria-expanded="false" aria-controls="background-image-info" aria-label="Background image information">i</button>
-              <span class="info-popover" id="background-image-info" role="tooltip" hidden>Replaces the background at the top of your site, behind your business name. GudiSpace automatically adjusts your business name's text color based on your primary and secondary colors so it stays readable.</span>
-            </span>
-            <div class="image-upload-row">
-              <label class="image-file-button">
-                Choose file
-                <input
-                  class="image-file-input"
-                  name="backgroundImage"
-                  type="file"
-                  accept=".png,.jpg,.jpeg,.webp,.gif,.heic,.heif"
-                  form="website-form"
-                />
-              </label>
-              <span class="background-image-preview image-preview" id="background-image-preview" hidden>
-                <img id="background-image-preview-image" alt="Selected background image preview" />
-                <button id="clear-background-image" type="button" aria-label="Remove background image">×</button>
-              </span>
-            </div>
-            <p class="section-validation-error" id="background-image-validation-error" role="alert" hidden></p>
-          </div>
         </section>
 
-        <fieldset class="template-picker bottom-template-picker">
+        <div class="background-image-control">
+          <span class="label-with-info">
+            Top banner background image
+            <button class="field-info" type="button" aria-expanded="false" aria-controls="background-image-info" aria-label="Background image information">i</button>
+            <span class="info-popover" id="background-image-info" role="tooltip" hidden>Replaces the background at the top of your site, behind your business name. GudiSpace automatically adjusts your business name's text color based on your primary and secondary colors so it stays readable.</span>
+          </span>
+          <div class="image-upload-row">
+            <label class="image-file-button">
+              Choose file
+              <input
+                class="image-file-input"
+                name="backgroundImage"
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp,.gif,.heic,.heif"
+                form="website-form"
+              />
+            </label>
+            <span class="background-image-preview image-preview" id="background-image-preview" hidden>
+              <img id="background-image-preview-image" alt="Selected background image preview" />
+              <button id="clear-background-image" type="button" aria-label="Remove background image">×</button>
+            </span>
+          </div>
+          <p class="section-validation-error" id="background-image-validation-error" role="alert" hidden></p>
+        </div>
+
+        <fieldset class="template-picker bottom-template-picker manual-mode-panel" id="manual-template-picker" hidden>
           <legend>Template</legend>
+          <label>
+            <input
+              type="radio"
+              name="template"
+              value="centered"
+              form="website-form"
+              checked
+            />
+            <span class="template-preview centered-preview">
+              <i></i><i></i><i></i>
+            </span>
+            <strong>Template 1</strong>
+            <small>Centered and stacked</small>
+          </label>
           <label>
             <input
               type="radio"
               name="template"
               value="logo-left"
               form="website-form"
-              checked
             />
             <span class="template-preview logo-left-preview">
               <i></i><i></i><i></i>
             </span>
-            <strong>Template 1</strong>
+            <strong>Template 2</strong>
             <small>Logo left, content right</small>
           </label>
           <label>
@@ -624,21 +733,8 @@
             <span class="template-preview logo-right-preview">
               <i></i><i></i><i></i>
             </span>
-            <strong>Template 2</strong>
-            <small>Content left, logo right</small>
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="template"
-              value="centered"
-              form="website-form"
-            />
-            <span class="template-preview centered-preview">
-              <i></i><i></i><i></i>
-            </span>
             <strong>Template 3</strong>
-            <small>Centered and stacked</small>
+            <small>Content left, logo right</small>
           </label>
         </fieldset>
         </section>

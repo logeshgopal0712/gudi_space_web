@@ -1385,6 +1385,161 @@ form {
   margin-bottom: 22px;
 }
 
+.design-mode-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.design-mode-option {
+  position: relative;
+  display: block;
+  padding: 14px 16px;
+  background: #f8f8f6;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.design-mode-option:has(input:checked) {
+  background: #fffaf1;
+  border-color: var(--accent);
+}
+
+.design-mode-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.design-mode-option strong {
+  display: block;
+  font-size: 15px;
+}
+
+.design-mode-option small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.mood-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.mood-option {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  padding: 14px;
+  background: #f8f8f6;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.mood-option:has(input:checked) {
+  background: #fffaf1;
+  border-color: var(--accent);
+}
+
+.mood-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.mood-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.mood-option small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.palette-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.palette-option {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background: #f8f8f6;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.palette-option:has(input:checked) {
+  background: #fffaf1;
+  border-color: var(--accent);
+}
+
+.palette-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.palette-swatches {
+  display: flex;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.palette-swatch {
+  flex: 1;
+  height: 32px;
+}
+
+.palette-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.palette-tone {
+  justify-self: start;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+}
+
+.palette-tone-dark {
+  color: #f5f5f5;
+  background: #1a1a1a;
+}
+
+.palette-tone-light {
+  color: #3a3a3a;
+  background: #e8e6e0;
+}
+
 .design-controls {
   padding: 20px;
   margin-bottom: 24px;
